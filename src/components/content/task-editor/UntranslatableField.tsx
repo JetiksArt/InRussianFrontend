@@ -1,9 +1,9 @@
 import React from "react";
 import cls from "./UntranslatableField.module.css";
 
-const MARK_LABEL = "Не переводится";
-const OPEN_TAG = "<untranslatable>";
-const CLOSE_TAG = "</untranslatable>";
+const MARK_LABEL = "Переводится";
+const OPEN_TAG = "<translatable>";
+const CLOSE_TAG = "</translatable>";
 const OPEN_M = "\uE000";
 const CLOSE_M = "\uE001";
 

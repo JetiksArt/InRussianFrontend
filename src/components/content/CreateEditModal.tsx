@@ -311,11 +311,9 @@ export const CreateEditModal = ({
                                                     fontSize: "0.9rem",
                                                 }}
                                             >
-                                                <img src={authorImageUrl || ''} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }} />
-                                                <span>Загружено: {authorSelectedFileName || 'image'}</span>
-                                                <span style={{ color: "var(--color-text-secondary)" }}>
-                          mediaId: {authorImageId}
-                        </span>
+                                                {authorImageUrl && (
+                                                    <img src={authorImageUrl} alt="author" style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }} />
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={handleRemoveAuthorImage}
@@ -365,15 +363,13 @@ export const CreateEditModal = ({
                                                 fontSize: "0.9rem",
                                             }}
                                         >
-                                            <img
-                                                src={posterUrl || ''}
-                                                alt="poster"
-                                                style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }}
-                                            />
-                                            <span>Загружено: {selectedFileName || "image"}</span>
-                                            <span style={{ color: "var(--color-text-secondary)" }}>
-                        mediaId: {coursePosterId}
-                      </span>
+                                            {posterUrl && (
+                                                <img
+                                                    src={posterUrl}
+                                                    alt="poster"
+                                                    style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 4 }}
+                                                />
+                                            )}
                                             <button
                                                 type="button"
                                                 onClick={handleRemoveImage}

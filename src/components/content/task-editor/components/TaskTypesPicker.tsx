@@ -35,6 +35,7 @@ const ALL_TASK_TYPES: TaskType[] = [
     "TASK",
     "QUESTION",
     "SET_THE_STRESS",
+    "CONTENT_BLOCKS",
 ];
 
 const TASK_TYPE_ICON_COMPONENT: Record<TaskType, React.ComponentType<any>> = {
@@ -53,6 +54,7 @@ const TASK_TYPE_ICON_COMPONENT: Record<TaskType, React.ComponentType<any>> = {
     TASK: TaskIcon,
     QUESTION: QuestionIcon,
     SET_THE_STRESS: SetTheStressIcon,
+    CONTENT_BLOCKS: TaskIcon,
 };
 
 export function TaskTypesPicker({selected, onToggle, disabled}: {

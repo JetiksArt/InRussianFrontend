@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import {FileInput} from "./FileInput";
 import type {Pair} from "../TaskModels";
 import {asDataUrl, fileToBase64, getMediaUrlById, isBareBase64, isDataUrl} from "../mediaUtils";
@@ -102,8 +102,7 @@ export function AudioPairsEditor({
                                 />
                                 <label className={styles.label}>
                                     Ответ
-                                    <UntranslatableField
-                                        className={styles.input}
+                                    <RichTextEditor
                                         value={text}
                                         onChange={(v) => updateText(i, v)}
                                         placeholder="Текст"
@@ -190,8 +189,7 @@ export function ImagePairsEditor({
                                 />
                                 <label className={styles.label}>
                                     Ответ
-                                    <UntranslatableField
-                                        className={styles.input}
+                                    <RichTextEditor
                                         value={caption}
                                         onChange={(v) => updateCaption(i, v)}
                                         placeholder="Подпись"

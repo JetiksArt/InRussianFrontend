@@ -99,7 +99,7 @@ export const AuthPage = () => {
                 }
                 const selectedRole = role as unknown as StaffRegisterRequestRoleEnum; // validated above
                 const userRole = await registerWithStaffProfile(
-                    {email, password, phone, role: selectedRole, systemLanguage},
+                    {email, password, phone, role: selectedRole, systemLanguage, name, surname},
                     {name, surname, patronymic}
                 );
                 redirectToPanel(userRole);

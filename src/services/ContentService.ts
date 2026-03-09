@@ -100,7 +100,7 @@ class ContentService {
                 courseId: c.courseId ?? null,
                 themesCount: await this.getThemesCountByCourse(c.id),
                 tasksCount: await this.getTasksCountByCourse(c.id),
-                posterId: c.posterId,
+                posterId: c.coursePoster ?? c.posterId ?? null,
             }))
         );
         return courses;
@@ -118,7 +118,7 @@ class ContentService {
             courseId: c.courseId ?? null,
             themesCount: await this.getThemesCountByCourse(courseId),
             tasksCount: await this.getTasksCountByCourse(courseId),
-            posterId: c.posterId,
+            posterId: c.coursePoster ?? c.posterId ?? null,
         };
     }
 
@@ -135,7 +135,7 @@ class ContentService {
             sectionsCount: 0,
             themesCount: 0,
             tasksCount: 0,
-            posterId: c.posterId,
+            posterId: c.coursePoster ?? c.posterId ?? null,
         };
     }
 

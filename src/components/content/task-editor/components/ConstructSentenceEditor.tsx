@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import {FileInput} from "./FileInput";
 import type {ConstructSentenceModel} from "../TaskModels";
 import {asDataUrl, fileToBase64, getMediaUrlById, isBareBase64, isDataUrl} from "../mediaUtils";
@@ -89,8 +89,7 @@ export function ConstructSentenceEditor({value, onChange, disabled}: {
                         )}
                         <label className={styles.label}>
                             Слово {i + 1}
-                            <UntranslatableField
-                                className={styles.input}
+                            <RichTextEditor
                                 value={word}
                                 onChange={(v) => setWord(i, v)}
                                 disabled={disabled}

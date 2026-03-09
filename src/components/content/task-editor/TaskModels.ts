@@ -13,7 +13,8 @@ export type TaskType =
     | "SELECT"
     | "TASK"
     | "QUESTION"
-    | "SET_THE_STRESS";
+    | "SET_THE_STRESS"
+    | "CONTENT_BLOCKS";
 
 export type Pair<A, B> = [A, B];
 
@@ -77,6 +78,23 @@ export interface SelectWordsModel {
     variants: Pair<string, boolean>[]; // single correct (radio)
 }
 
+export interface StressWordModel {
+    word: string;
+    stressIndex: number;
+}
+
+export type TableCellType = "READONLY" | "WRITABLE";
+
+export interface TableCellModel {
+    type: TableCellType;
+    value: string;
+    answer?: string | null;
+}
+
+export interface TableRowModel {
+    cells: TableCellModel[];
+}
+
 // New: Theory (ContentBlocks)
 export type ContentKind = "TEXT" | "IMAGE" | "AUDIO";
 
@@ -124,6 +142,14 @@ export type TaskBody =
     | {
     type: "SelectWordsTask";
     task: SelectWordsModel;
+}
+    | {
+    type: "SetTheStressTask";
+    task: StressWordModel[];
+}
+    | {
+    type: "TableTask";
+    task: TableRowModel[];
 }
     | {
     type: "ContentBlocks";
@@ -181,6 +207,7 @@ export const TASK_TYPE_LABELS_RU: Record<TaskType, string> = {
     TASK: "Задание",
     QUESTION: "Что это?",
     SET_THE_STRESS: "Поставьте ударение",
+    CONTENT_BLOCKS: "Theory",
 };
 
 export const taskTypeToRu = (t: TaskType): string => TASK_TYPE_LABELS_RU[t];

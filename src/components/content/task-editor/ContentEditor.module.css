@@ -316,3 +316,84 @@
 /* Slightly denser form controls in compact cards */
 .wordCard .label { margin-bottom: 2px; }
 .wordCard .input { padding: 6px 8px; }
+
+.dragHandle {
+  position: absolute;
+  left: 12px;
+  top: 10px;
+  cursor: grab;
+  color: var(--color-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+}
+
+.draggingCard {
+  opacity: 0.55;
+  border-color: var(--color-primary);
+}
+
+.richTextRoot {
+  position: relative;
+  width: 100%;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-input-bg);
+  color: var(--color-text);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.richTextToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-card);
+}
+
+.richTextButton {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1.2;
+}
+
+.richTextButton[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.richTextButtonActive {
+  background: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-color: var(--color-primary);
+  color: var(--color-text);
+}
+
+.richTextEditor {
+  min-height: 140px;
+  padding: 10px;
+  outline: none;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.richTextEditor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+:global(.ut) {
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 42%, transparent);
+  border-radius: 6px;
+  padding: 0 2px;
+}

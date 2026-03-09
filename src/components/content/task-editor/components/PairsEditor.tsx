@@ -1,5 +1,5 @@
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import type {Pair} from "../TaskModels";
 
 export function PairsEditor({
@@ -55,8 +55,7 @@ export function PairsEditor({
                         <div className={styles.fieldsColumn}>
                             <label className={styles.label}>
                                 Левое поле
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={left}
                                     onChange={(value) => updatePair(idx, 0, value)}
                                     placeholder={leftPlaceholder}
@@ -65,8 +64,7 @@ export function PairsEditor({
                             </label>
                             <label className={styles.label}>
                                 Правое поле
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={right}
                                     onChange={(value) => updatePair(idx, 1, value)}
                                     placeholder={rightPlaceholder}

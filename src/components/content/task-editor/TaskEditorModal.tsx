@@ -1,4 +1,5 @@
 import React, {useMemo, useState} from "react";
+import axios from "axios";
 import styles from "./ContentEditor.module.css";
 import type {
     TaskType,
@@ -9,6 +10,8 @@ import type {
     ImageAndSelectModel,
     ConstructSentenceModel,
     SelectWordsModel,
+    StressWordModel,
+    TableRowModel,
     CreateTaskModelRequest,
     UpdateTaskModelRequest,
     TaskModel,
@@ -26,6 +29,8 @@ import {ImageAndSelectEditor} from "./components/ImageAndSelectEditor";
 import {ConstructSentenceEditor} from "./components/ConstructSentenceEditor";
 import {SelectWordsEditor} from "./components/SelectWordsEditor";
 import {ContentBlocksEditor} from "./components/ContentBlocksEditor";
+import {SetTheStressEditor} from "./components/SetTheStressEditor";
+import {TableTaskEditor} from "./components/TableTaskEditor";
 import {
     uploadTaskBodyMediaIfNeeded,
     toInternalTaskBody,
@@ -43,6 +48,8 @@ const BODY_TYPE_OPTIONS: { value: TaskBody["type"]; label: string }[] = [
     {value: "ImageAndSelect", label: "Смотреть и выбирать"},
     {value: "ConstructSentenceTask", label: "Собери предложение"},
     {value: "SelectWordsTask", label: "Выбор слов"},
+    {value: "SetTheStressTask", label: "Поставьте ударение"},
+    {value: "TableTask", label: "Таблица"},
     {value: "ContentBlocks", label: "Теория"},
 ];
 
@@ -66,14 +73,105 @@ const MODAL_STYLE: React.CSSProperties = {
     boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
 };
 
+function withOneBasedStressIndex<T extends { taskBody?: unknown }>(req: T): T {
+    const taskBody = req.taskBody as any;
+    if (!taskBody || taskBody.type !== "SetTheStressTask" || !Array.isArray(taskBody.task)) {
+        return req;
+    }
+    return {
+        ...req,
+        taskBody: {
+            ...taskBody,
+            task: taskBody.task.map((item: any) => {
+                const raw = Number.isFinite(item?.stressIndex) ? Math.trunc(Number(item.stressIndex)) : 0;
+                return {
+                    ...item,
+                    stressIndex: Math.max(1, raw + 1),
+                };
+            }),
+        },
+    } as T;
+}
+
 async function createTaskApi(req: CreateTaskModelRequest): Promise<TaskModel> {
-    const resp = await axiosInstance.post("/task", req);
-    return resp.data as TaskModel;
+    try {
+        const resp = await axiosInstance.post("/task", req);
+        return resp.data as TaskModel;
+    } catch (e: unknown) {
+        if (axios.isAxiosError(e) && e.response?.status === 400) {
+            
+            try {
+                const fallbackArrayReq = {
+                    ...req,
+                    taskType: req.taskTypes,
+                } as any;
+                delete fallbackArrayReq.taskTypes;
+                const resp = await axiosInstance.post("/task", fallbackArrayReq);
+                return resp.data as TaskModel;
+            } catch (fallbackArrayError: unknown) {
+                if (axios.isAxiosError(fallbackArrayError) && fallbackArrayError.response?.status === 400) {
+                    const fallbackStringReq: any = {
+                        ...req,
+                        taskType: req.taskTypes?.[0] ?? "",
+                    };
+                    delete fallbackStringReq.taskTypes;
+                    try {
+                        const resp = await axiosInstance.post("/task", fallbackStringReq);
+                        return resp.data as TaskModel;
+                    } catch (fallbackStringError: unknown) {
+                        if (axios.isAxiosError(fallbackStringError) && fallbackStringError.response?.status === 400) {
+                            const oneBasedReq = withOneBasedStressIndex(fallbackStringReq);
+                            const resp = await axiosInstance.post("/task", oneBasedReq);
+                            return resp.data as TaskModel;
+                        }
+                        throw fallbackStringError;
+                    }
+                }
+                throw fallbackArrayError;
+            }
+        }
+        throw e;
+    }
 }
 
 async function updateTaskApi(id: string, req: UpdateTaskModelRequest): Promise<TaskModel> {
-    const resp = await axiosInstance.put(`/task/${id}`, req);
-    return resp.data as TaskModel;
+    try {
+        const resp = await axiosInstance.put(`/task/${id}`, req);
+        return resp.data as TaskModel;
+    } catch (e: unknown) {
+        if (axios.isAxiosError(e) && e.response?.status === 400) {
+            try {
+                const fallbackArrayReq = {
+                    ...req,
+                    taskType: req.taskTypes,
+                } as any;
+                delete fallbackArrayReq.taskTypes;
+                const resp = await axiosInstance.put(`/task/${id}`, fallbackArrayReq);
+                return resp.data as TaskModel;
+            } catch (fallbackArrayError: unknown) {
+                if (axios.isAxiosError(fallbackArrayError) && fallbackArrayError.response?.status === 400) {
+                    const fallbackStringReq: any = {
+                        ...req,
+                        taskType: req.taskTypes?.[0] ?? "",
+                    };
+                    delete fallbackStringReq.taskTypes;
+                    try {
+                        const resp = await axiosInstance.put(`/task/${id}`, fallbackStringReq);
+                        return resp.data as TaskModel;
+                    } catch (fallbackStringError: unknown) {
+                        if (axios.isAxiosError(fallbackStringError) && fallbackStringError.response?.status === 400) {
+                            const oneBasedReq = withOneBasedStressIndex(fallbackStringReq);
+                            const resp = await axiosInstance.put(`/task/${id}`, oneBasedReq);
+                            return resp.data as TaskModel;
+                        }
+                        throw fallbackStringError;
+                    }
+                }
+                throw fallbackArrayError;
+            }
+        }
+        throw e;
+    }
 }
 
 type Props = {
@@ -128,44 +226,72 @@ export default function TaskEditorModal({
         switch (type) {
             case "TextConnectTask":
                 setBody({type: "TextConnectTask", variant: [["", ""]]});
+                setTaskTypes((prev) => (prev.length ? prev : ["TASK"]));
                 break;
             case "TextInputTask":
                 setBody({type: "TextInputTask", task: [{label: "", text: "", gaps: []}]});
+                setTaskTypes((prev) => (prev.length ? prev : ["FILL"]));
                 break;
             case "AudioTask":
                 setBody({type: "AudioTask", variant: [["", ""]]});
+                setTaskTypes((prev) => (prev.length ? prev : ["CONNECT_AUDIO"]));
                 break;
             case "ImageTask":
                 setBody({type: "ImageTask", variant: [["", ""]]});
+                setTaskTypes((prev) => (prev.length ? prev : ["CONNECT_IMAGE"]));
                 break;
             case "TextInputWithVariantTask":
                 setBody({type: "TextInputWithVariantTask", task: {label: "", text: "", gaps: []}} as TaskBody);
+                setTaskTypes((prev) => (prev.length ? prev : ["FILL"]));
                 break;
             case "ListenAndSelect":
                 setBody({
                     type: "ListenAndSelect",
                     task: {audioBlocks: [], variants: [["", false], ["", false]]},
                 } as TaskBody);
+                setTaskTypes((prev) => (prev.length ? prev : ["LISTEN"]));
                 break;
             case "ImageAndSelect":
                 setBody({
                     type: "ImageAndSelect",
                     task: {imageBlocks: [], variants: [["", false], ["", false]]},
                 } as TaskBody);
+                setTaskTypes((prev) => (prev.length ? prev : ["SELECT"]));
                 break;
             case "ConstructSentenceTask":
                 setBody({type: "ConstructSentenceTask", task: {audio: null, variants: ["", ""]}} as TaskBody);
+                setTaskTypes((prev) => (prev.length ? prev : ["TASK"]));
                 break;
             case "SelectWordsTask":
                 setBody({
                     type: "SelectWordsTask",
                     task: {audio: "", variants: [["", false], ["", false]]},
                 } as TaskBody);
+                setTaskTypes((prev) => (prev.length ? prev : ["MARK"]));
+                break;
+            case "SetTheStressTask":
+                setBody({type: "SetTheStressTask", task: [{word: "", stressIndex: 0}]});
+                setTaskTypes(["SET_THE_STRESS"]);
+                break;
+            case "TableTask":
+                setBody({
+                    type: "TableTask",
+                    task: [{cells: [{type: "READONLY", value: ""}, {type: "WRITABLE", value: "", answer: ""}]}],
+                } as TaskBody);
+                setTaskTypes(["TASK"]);
                 break;
             case "ContentBlocks":
                 setBody({type: "ContentBlocks", items: [{kind: "TEXT", text: ""}]});
+                setTaskTypes(["CONTENT_BLOCKS"]);
                 break;
         }
+    };
+
+    const getNormalizedTaskTypes = (types: TaskType[], bodyType: TaskBody["type"]): TaskType[] => {
+        if (bodyType === "SetTheStressTask") return ["SET_THE_STRESS"];
+        if (bodyType === "ContentBlocks") return ["CONTENT_BLOCKS"];
+        if (bodyType === "TableTask") return ["TASK"];
+        return types;
     };
 
     const submitDisabled = useMemo(() => {
@@ -242,6 +368,21 @@ export default function TaskEditorModal({
                     (body.task as SelectWordsModel).variants.some(([text]) => !text || !text.trim()) ||
                     !(body.task as SelectWordsModel).variants.some(([, correct]) => correct)
                 );
+            case "SetTheStressTask":
+                return (
+                    !(body.task as StressWordModel[]).length ||
+                    (body.task as StressWordModel[]).some((w) => !w.word || !w.word.trim()) ||
+                    (body.task as StressWordModel[]).some((w) => w.stressIndex < 0 || w.stressIndex >= (w.word || "").length)
+                );
+            case "TableTask":
+                return (
+                    !(body.task as TableRowModel[]).length ||
+                    (body.task as TableRowModel[]).some((row) => !row.cells || row.cells.length < 2) ||
+                    (body.task as TableRowModel[]).some((row) => row.cells.some((cell) => !cell.value || !cell.value.trim())) ||
+                    (body.task as TableRowModel[]).some((row) =>
+                        row.cells.some((cell) => cell.type === "WRITABLE" && (!cell.answer || !String(cell.answer).trim()))
+                    )
+                );
             case "ContentBlocks": {
                 const items = (body as any).items as ContentItem[];
                 if (!items || items.length === 0) return true;
@@ -263,11 +404,12 @@ export default function TaskEditorModal({
         try {
             const bodyWithMediaIds = await uploadTaskBodyMediaIfNeeded(body);
             const wireBody = toWireTaskBody(bodyWithMediaIds);
+            const normalizedTaskTypes = getNormalizedTaskTypes(taskTypes, body.type);
             if (initialTask) {
                 const req: UpdateTaskModelRequest = {
                     themeId,
                     taskBody: wireBody as unknown as TaskBody,
-                    taskTypes,
+                    taskTypes: normalizedTaskTypes,
                 };
                 const updated = await updateTaskApi(initialTask.id, req);
                 onUpdated?.(updated);
@@ -277,14 +419,32 @@ export default function TaskEditorModal({
                     themeId,
                     taskBody: wireBody as unknown as TaskBody,
                     question: question === "" ? null : question,
-                    taskTypes,
+                    taskTypes: normalizedTaskTypes,
                 };
                 const created = await createTaskApi(req);
                 onCreated?.(created);
                 onClose();
             }
-        } catch (e: any) {
-            setError(e?.message ?? "Не удалось создать задание");
+        } catch (e: unknown) {
+            if (axios.isAxiosError(e)) {
+                const status = e.response?.status;
+                const data = e.response?.data;
+                const details =
+                    typeof data === "string"
+                        ? data
+                        : data && typeof data === "object"
+                            ? JSON.stringify(data)
+                            : e.message;
+                setError(`Ошибка ${status ?? ""}: ${details || "Не удалось создать задание"}`.trim());
+                console.error("Task create/update failed:", {
+                    status,
+                    data,
+                    request: e.config?.data,
+                });
+            } else {
+                setError("Не удалось создать задание");
+                console.error("Task create/update failed:", e);
+            }
         } finally {
             setSaving(false);
         }
@@ -412,6 +572,22 @@ export default function TaskEditorModal({
                         <SelectWordsEditor
                             value={body.task as SelectWordsModel}
                             onChange={(value: SelectWordsModel) => setBody({...body, task: value} as TaskBody)}
+                            disabled={readOnly}
+                        />
+                    )}
+
+                    {body.type === "SetTheStressTask" && (
+                        <SetTheStressEditor
+                            value={body.task as StressWordModel[]}
+                            onChange={(value: StressWordModel[]) => setBody({...body, task: value} as TaskBody)}
+                            disabled={readOnly}
+                        />
+                    )}
+
+                    {body.type === "TableTask" && (
+                        <TableTaskEditor
+                            value={body.task as TableRowModel[]}
+                            onChange={(value: TableRowModel[]) => setBody({...body, task: value} as TaskBody)}
                             disabled={readOnly}
                         />
                     )}

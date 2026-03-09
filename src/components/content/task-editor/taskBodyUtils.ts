@@ -7,9 +7,16 @@ import type {
     ImageAndSelectModel,
     ConstructSentenceModel,
     SelectWordsModel,
+    StressWordModel,
     ContentItem,
+    TableRowModel,
 } from "./TaskModels";
 import {isBareBase64, isDataUrl, uploadMediaString} from "./mediaUtils";
+
+const OPEN_TAG = "<translatable>";
+const CLOSE_TAG = "</translatable>";
+const stripTranslatableTags = (word: string) =>
+    (word || "").replaceAll(OPEN_TAG, "").replaceAll(CLOSE_TAG, "");
 
 export type PairObj<A, B> = { first: A; second: B };
 
@@ -29,6 +36,8 @@ export type WireTaskBody =
     }
     | { type: "ConstructSentenceTask"; task: { audio: string | null; variants: string[] } }
     | { type: "SelectWordsTask"; task: { audio: string; variants: PairObj<string, boolean>[] } }
+    | { type: "SetTheStressTask"; task: StressWordModel[] }
+    | { type: "TableTask"; task: TableRowModel[] }
     | { type: "ContentBlocks"; items: ContentItem[] };
 
 async function uploadPairsIfNeeded(
@@ -172,6 +181,25 @@ export function toInternalTaskBody(wire: WireTaskBody): TaskBody {
                     variants: (wire as any).task.variants?.map((v: any) => [v.first, v.second]) || [],
                 },
             } as TaskBody;
+        case "SetTheStressTask":
+            return {
+                type: "SetTheStressTask",
+                task: ((wire as any).task || []).map((w: any) => ({
+                    word: w.word || "",
+                    stressIndex: Number.isFinite(w.stressIndex) ? w.stressIndex : 0,
+                })),
+            } as TaskBody;
+        case "TableTask":
+            return {
+                type: "TableTask",
+                task: ((wire as any).task || []).map((row: any) => ({
+                    cells: (row?.cells || []).map((cell: any) => ({
+                        type: cell?.type === "WRITABLE" ? "WRITABLE" : "READONLY",
+                        value: cell?.value ?? "",
+                        answer: cell?.answer ?? null,
+                    })),
+                })),
+            } as TaskBody;
         case "ContentBlocks":
             return {type: "ContentBlocks", items: (wire as any).items || []} as TaskBody;
         default:
@@ -226,6 +254,33 @@ export function toWireTaskBody(internal: TaskBody): WireTaskBody {
                     audio: internal.task.audio,
                     variants: internal.task.variants.map(([t, c]) => ({first: t, second: c})),
                 },
+            } as WireTaskBody;
+        case "SetTheStressTask":
+            return {
+                type: "SetTheStressTask",
+                task: (internal.task || [])
+                    .map((w) => {
+                        const clean = stripTranslatableTags(w.word || "").trim();
+                        const max = Math.max(0, clean.length - 1);
+                        const raw = Number.isFinite(w.stressIndex) ? w.stressIndex : 0;
+                        const idx = Math.trunc(raw);
+                        return {
+                            word: clean,
+                            stressIndex: Math.min(Math.max(0, idx), max),
+                        };
+                    })
+                    .filter((w) => w.word.length > 0),
+            } as WireTaskBody;
+        case "TableTask":
+            return {
+                type: "TableTask",
+                task: (internal.task || []).map((row) => ({
+                    cells: (row.cells || []).map((cell) => ({
+                        type: cell.type === "WRITABLE" ? "WRITABLE" : "READONLY",
+                        value: cell.value ?? "",
+                        answer: cell.type === "WRITABLE" ? (cell.answer ?? "") : null,
+                    })),
+                })),
             } as WireTaskBody;
         case "ContentBlocks":
             return {type: "ContentBlocks", items: (internal as any).items} as WireTaskBody;

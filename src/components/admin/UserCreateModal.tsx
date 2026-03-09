@@ -135,7 +135,12 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({ isOpen, onClos
       if (role === UserRoleEnum.Student) {
         // Student registration
         const { data } = await authApi.authStudentRegisterPost({
-          email, password, phone, systemLanguage: UserSystemLanguageEnum.Russian
+          email,
+          password,
+          phone,
+          systemLanguage: UserSystemLanguageEnum.Russian,
+          name: name.trim(),
+          surname: surname.trim()
         });
         // Create full student profile (CreateUserProfileRequest)
         let profileCreated = false;

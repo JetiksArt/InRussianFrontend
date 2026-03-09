@@ -1,5 +1,6 @@
+import React from "react";
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import {FileInput} from "./FileInput";
 import type {ContentItem, ContentKind} from "../TaskModels";
 import {asDataUrl, fileToBase64, isBareBase64, isDataUrl} from "../mediaUtils";
@@ -9,6 +10,8 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
     onChange: (v: { items: ContentItem[] }) => void;
     disabled?: boolean;
 }) {
+    const [dragIndex, setDragIndex] = React.useState<number | null>(null);
+
     const addItem = (kind: ContentKind) => {
         const base: ContentItem =
             kind === "TEXT"
@@ -23,6 +26,14 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
 
     const patchItem = (idx: number, patch: Partial<ContentItem>) =>
         onChange({items: value.items.map((it, i) => (i === idx ? {...it, ...patch} : it))});
+
+    const moveItem = (from: number, to: number) => {
+        if (from === to || from < 0 || to < 0) return;
+        const items = [...value.items];
+        const [moved] = items.splice(from, 1);
+        items.splice(to, 0, moved);
+        onChange({items});
+    };
 
     const setFile = async (idx: number, file: File | null, kind: "image" | "audio") => {
         if (!file) return;
@@ -53,7 +64,36 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
             </div>
             <div className={styles.list}>
                 {value.items.map((item, i) => (
-                    <div key={i} className={styles.card}>
+                    <div
+                        key={i}
+                        className={`${styles.card} ${dragIndex === i ? styles.draggingCard : ""}`}
+                        style={{paddingLeft: disabled ? undefined : 42}}
+                        draggable={!disabled}
+                        onDragStart={(e) => {
+                            if (disabled) return;
+                            setDragIndex(i);
+                            e.dataTransfer.effectAllowed = "move";
+                            e.dataTransfer.setData("text/plain", String(i));
+                        }}
+                        onDragOver={(e) => {
+                            if (disabled) return;
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = "move";
+                        }}
+                        onDrop={(e) => {
+                            if (disabled) return;
+                            e.preventDefault();
+                            const from = Number(e.dataTransfer.getData("text/plain"));
+                            moveItem(from, i);
+                            setDragIndex(null);
+                        }}
+                        onDragEnd={() => setDragIndex(null)}
+                    >
+                        {!disabled && (
+                            <div className={styles.dragHandle} title="Перетащите для изменения порядка">
+                                ⋮⋮
+                            </div>
+                        )}
                         {!disabled && (
                             <button className={styles.removeButton} onClick={() => removeItem(i)}>
                                 ✕ удалить
@@ -63,12 +103,10 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
                             <div className={styles.fieldsGrid}>
                                 <label className={styles.label}>
                                     Текст
-                                    <UntranslatableField
-                                        className={styles.textarea}
+                                    <RichTextEditor
                                         value={item.text || ""}
                                         onChange={(v) => patchItem(i, {text: v})}
                                         disabled={disabled}
-                                        multiline={true}
                                     />
                                 </label>
                             </div>
@@ -93,8 +131,7 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
                                 />
                                 <label className={styles.label}>
                                     Подпись
-                                    <UntranslatableField
-                                        className={styles.input}
+                                    <RichTextEditor
                                         value={item.caption || ""}
                                         onChange={(v) => patchItem(i, {caption: v})}
                                         disabled={disabled}
@@ -109,7 +146,7 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
                                                     ? asDataUrl(item.imageUrl, "image/*")
                                                     : item.imageUrl
                                             }
-                                            alt="preview"
+                                            alt=""
                                         />
                                     </div>
                                 )}
@@ -135,8 +172,7 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
                                 />
                                 <label className={styles.label}>
                                     Подпись
-                                    <UntranslatableField
-                                        className={styles.input}
+                                    <RichTextEditor
                                         value={item.caption || ""}
                                         onChange={(v) => patchItem(i, {caption: v})}
                                         disabled={disabled}
@@ -163,4 +199,3 @@ export function ContentBlocksEditor({value, onChange, disabled}: {
         </div>
     );
 }
-

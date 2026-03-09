@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import {FileInput} from "./FileInput";
 import type {ImageAndSelectModel} from "../TaskModels";
 import {asDataUrl, fileToBase64, getMediaUrlById, isBareBase64, isDataUrl} from "../mediaUtils";
@@ -94,8 +94,7 @@ export function ImageAndSelectEditor({
                         <div className={styles.fieldsGrid}>
                             <label className={styles.label}>
                                 Название
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={block.name}
                                     onChange={(v) => updateBlock(i, {name: v})}
                                     disabled={disabled}
@@ -103,8 +102,7 @@ export function ImageAndSelectEditor({
                             </label>
                             <label className={styles.label}>
                                 Описание
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={block.description ?? ""}
                                     onChange={(v) => updateBlock(i, {description: v})}
                                     disabled={disabled}
@@ -112,8 +110,7 @@ export function ImageAndSelectEditor({
                             </label>
                             <label className={styles.label}>
                                 Перевод описания
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={block.descriptionTranslate ?? ""}
                                     onChange={(v) => updateBlock(i, {descriptionTranslate: v})}
                                     disabled={disabled}
@@ -160,8 +157,7 @@ export function ImageAndSelectEditor({
                         <div className={styles.fieldsGrid}>
                             <label className={styles.label}>
                                 Текст
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={text}
                                     onChange={(v) => setVariantText(i, v)}
                                     disabled={disabled}

@@ -1138,6 +1138,18 @@ export interface StaffRegisterRequest {
      * @memberof StaffRegisterRequest
      */
     'systemLanguage': StaffRegisterRequestSystemLanguageEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof StaffRegisterRequest
+     */
+    'name': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof StaffRegisterRequest
+     */
+    'surname': string;
 }
 
 export const StaffRegisterRequestRoleEnum = {
@@ -1189,6 +1201,18 @@ export interface StudentRegisterRequest {
      * @memberof StudentRegisterRequest
      */
     'systemLanguage': StudentRegisterRequestSystemLanguageEnum;
+    /**
+     * 
+     * @type {string}
+     * @memberof StudentRegisterRequest
+     */
+    'name': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof StudentRegisterRequest
+     */
+    'surname': string;
 }
 
 export const StudentRegisterRequestSystemLanguageEnum = {

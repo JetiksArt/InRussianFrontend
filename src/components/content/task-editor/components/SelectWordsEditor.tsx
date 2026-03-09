@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import {FileInput} from "./FileInput";
 import type {SelectWordsModel} from "../TaskModels";
 import {asDataUrl, fileToBase64, getMediaUrlById, isBareBase64, isDataUrl} from "../mediaUtils";
@@ -91,8 +91,7 @@ export function SelectWordsEditor({value, onChange, disabled}: {
                         <div className={styles.fieldsGrid}>
                             <label className={styles.label}>
                                 Текст
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={text}
                                     onChange={(v) => setVariantText(i, v)}
                                     disabled={disabled}

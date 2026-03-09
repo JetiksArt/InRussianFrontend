@@ -1,5 +1,5 @@
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import type {Gap, Sentence} from "../TaskModels";
 
 export function SentencesEditor({
@@ -40,8 +40,7 @@ export function SentencesEditor({
                         )}
                         <label className={styles.label}>
                             Заголовок
-                            <UntranslatableField
-                                className={styles.input}
+                            <RichTextEditor
                                 value={s.label}
                                 onChange={(v) => setSentenceLabel(i, v)}
                                 placeholder="Заголовок блока..."
@@ -50,13 +49,11 @@ export function SentencesEditor({
                         </label>
                         <label className={styles.label}>
                             Текст
-                            <UntranslatableField
-                                className={styles.textarea}
+                            <RichTextEditor
                                 value={s.text}
                                 onChange={(v) => setSentenceText(i, v)}
                                 placeholder="Текст предложения..."
                                 disabled={disabled}
-                                multiline={true}
                             />
                         </label>
                         <GapsEditor
@@ -115,8 +112,7 @@ function GapsEditor({
                         <div className={styles.fieldsColumn}>
                             <label className={styles.label}>
                                 Правильное слово
-                                <UntranslatableField
-                                    className={styles.input}
+                                <RichTextEditor
                                     value={g.correctWord}
                                     onChange={(v) => updateGap(i, {correctWord: v})}
                                     placeholder="Правильный ответ"

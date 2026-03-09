@@ -1,5 +1,5 @@
 import styles from "../ContentEditor.module.css";
-import {UntranslatableField} from "../UntranslatableField";
+import {RichTextEditor} from "../RichTextEditor";
 import type {GapWithVariantModel, TextInputWithVariantModel} from "../TaskModels";
 
 export function TextWithVariantGapsEditor({
@@ -65,8 +65,7 @@ export function TextWithVariantGapsEditor({
             <div className={styles.card}>
                 <label className={styles.label}>
                     Заголовок
-                    <UntranslatableField
-                        className={styles.input}
+                    <RichTextEditor
                         value={value.label}
                         onChange={(v) => setLabel(v)}
                         disabled={disabled}
@@ -74,12 +73,10 @@ export function TextWithVariantGapsEditor({
                 </label>
                 <label className={styles.label}>
                     Текст
-                    <UntranslatableField
-                        className={styles.textarea}
+                    <RichTextEditor
                         value={value.text}
                         onChange={(v) => setText(v)}
                         disabled={disabled}
-                        multiline={true}
                     />
                 </label>
             </div>
@@ -117,8 +114,7 @@ export function TextWithVariantGapsEditor({
                                 <div key={j}>
                                     <label className={styles.label}>
                                         Вариант {j + 1}
-                                        <UntranslatableField
-                                            className={styles.input}
+                                        <RichTextEditor
                                             value={option}
                                             onChange={(v) => setVariant(i, j, v)}
                                             disabled={disabled}
