@@ -257,6 +257,11 @@ export const ContentProvider: React.FC<{ children: ReactNode }> = ({
       } else {
         resp = await axiosInstance.get(`/content/themes/${id}/tree`);
       }
+      console.log("THEME_DEBUG backend tree", {
+        id,
+        type,
+        data: resp.data,
+      });
       setThemeTree(prev => ({ ...prev, [id]: Array.isArray(resp.data) ? resp.data : [resp.data] }));
     } catch (error) {
       console.error("Ошибка загрузки дерева тем:", error);

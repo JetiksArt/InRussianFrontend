@@ -122,6 +122,25 @@ class ContentService {
         };
     }
 
+    async getSectionsByCourse(courseId: string): Promise<any[]> {
+        const { data } = await this.contentApi.contentSectionsByCourseCourseIdGet(courseId);
+        return data || [];
+    }
+
+    async createSection(courseId: string, name: string, description?: string): Promise<any> {
+        const { data } = await axiosInstance.post(`/content/sections`, {
+            courseId,
+            name,
+            description: description ?? "",
+        });
+        return data;
+    }
+
+    async updateSection(sectionId: string, sectionData: any): Promise<any> {
+        const { data } = await axiosInstance.put(`/content/sections/${sectionId}`, sectionData);
+        return data;
+    }
+
     async createCourse(courseData: any): Promise<any> {
         const { data: c } = await this.managerApi.contentCoursesPost(courseData);
         return {
@@ -191,6 +210,11 @@ class ContentService {
     async getThemeTree(themeId: string): Promise<any> {
         const { data } = await axiosInstance.get(`/content/themes/${themeId}/tree`);
         return data;
+    }
+
+    async getThemesBySection(sectionId: string): Promise<any[]> {
+        const { data } = await this.contentApi.contentThemesBySectionSectionIdGet(sectionId);
+        return data || [];
     }
 
     async getThemeTasks(themeId: string): Promise<any[]> {
