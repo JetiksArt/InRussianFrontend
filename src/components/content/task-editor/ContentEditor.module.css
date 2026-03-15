@@ -133,6 +133,11 @@
   gap: 2px;
 }
 
+.removeButton + .mediaBlock,
+.removeButton + .fieldsGrid {
+  padding-right: 140px;
+}
+
 .textarea {
   width: 100%;
   padding: 8px 10px;
@@ -148,24 +153,34 @@
 
 .mediaBlock {
   margin-bottom: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .mediaPreview {
   margin-bottom: 8px;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .image {
-  max-width: 200px;
+  display: block;
+  width: auto;
+  max-width: 100%;
   max-height: 200px;
   object-fit: contain;
 }
 
 .audio {
-  width: 90%;
+  display: block;
+  width: 100%;
+  max-width: 100%;
 }
 
 .video {
-  max-width: 300px;
+  display: block;
+  width: auto;
+  max-width: 100%;
   max-height: 200px;
 }
 
@@ -177,9 +192,13 @@
 
 .label {
   display: block;
+  min-width: 0;
   margin-bottom: 4px;
   font-weight: 500;
   font-size: 0.9rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .input {

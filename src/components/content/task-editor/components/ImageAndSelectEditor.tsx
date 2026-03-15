@@ -126,7 +126,7 @@ export function ImageAndSelectEditor({
                                 <img className={styles.image} src={previews[i] || undefined}/>
                             ) : (
                                 <div className={styles.label}>
-                                    {block.image ? `изображение загружено (id: ${block.image})` : "изображение не выбрано"}
+                                    {block.image ? `Изображение загружено: ${block.image}` : "Изображение не выбрано"}
                                 </div>
                             )}
                         </div>

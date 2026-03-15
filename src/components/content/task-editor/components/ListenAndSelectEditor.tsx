@@ -126,7 +126,7 @@ export function ListenAndSelectEditor({
                                 <audio className={styles.audio} controls src={previews[i] || undefined}/>
                             ) : (
                                 <div className={styles.label}>
-                                    {block.audio ? `аудио загружено (id: ${block.audio})` : "аудио не выбрано"}
+                                    {block.audio ? `Аудио загружено (id: ${block.audio})` : "Аудио не выбрано"}
                                 </div>
                             )}
                         </div>

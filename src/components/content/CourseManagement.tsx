@@ -165,37 +165,6 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
     const orderedChildren = [...node.children];
     const orderedTasks = [...(taskOverrides[theme.id] ?? taskModels[theme.id] ?? tasks)].sort(compareTaskModels);
     const themeIndex = siblingThemes.findIndex((item) => item.id === theme.id);
-    const canMoveThemeUp = themeIndex > 0;
-    const canMoveThemeDown = themeIndex >= 0 && themeIndex < siblingThemes.length - 1;
-    const handleMoveTask = (task: TaskModel, direction: -1 | 1) => {
-        const currentIndex = orderedTasks.findIndex((item) => item.id === task.id);
-        const targetIndex = currentIndex + direction;
-        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedTasks.length) {
-            return;
-        }
-
-        const reordered = [...orderedTasks];
-        const [movedTask] = reordered.splice(currentIndex, 1);
-        reordered.splice(targetIndex, 0, movedTask);
-        console.warn("TASK_DEBUG local reorder", {
-            themeId: theme.id,
-            direction,
-            currentIndex,
-            targetIndex,
-            reordered: reordered.map((item, index) => ({
-                id: item.id,
-                question: item.question,
-                position: index,
-            })),
-        });
-        setTasks(
-            reordered.map((item, index) => ({
-                ...item,
-                position: index,
-            })),
-        );
-        void moveTask(theme.id, orderedTasks, task, direction);
-    };
     const handleThemeDragStart = (event: React.DragEvent<HTMLDivElement>) => {
         setDraggedThemeId(theme.id);
         event.dataTransfer.setData("application/x-theme-id", theme.id);
@@ -434,7 +403,7 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                         <h6 style={{ margin: 0, fontWeight: 600 }}>Задачи (новый редактор)</h6>
                     </div>
-                    {orderedTasks.map((task: TaskModel, taskIndex: number) => (
+                    {orderedTasks.map((task: TaskModel) => (
                         <div
                             key={task.id}
                             draggable
@@ -729,16 +698,7 @@ export const CoursesManagement = () => {
             throw error;
         }
     };
-    const getModalTitle = () => {
-        if (modalState.type === "course") return modalState.editItem ? "Редактировать курс" : "Создать курс";
-        if (modalState.type === "theme") return modalState.editItem ? "Редактировать тему" : "Создать тему";
-        return "";
-    };
-    const getDeleteWarning = (type: string, item: any) => {
-        if (type === "course") return `Удалить курс "${item.name}"? Все темы и задачи будут удалены.`;
-        if (type === "theme") return `Удалить тему "${item.name}"? Все задачи будут удалены.`;
-        return "";
-    };
+    
     const handleCourseClick = (id: string) => setExpandedCourse(expandedCourse === id ? null : id);
     const handleThemeClick = (id: string) => {
         setExpandedThemes((prev: string[]) =>
@@ -746,6 +706,16 @@ export const CoursesManagement = () => {
                 ? prev.filter((tid: string) => tid !== id)
                 : [...prev, id]
         );
+    };
+    const getModalTitleText = () => {
+        if (modalState.type === "course") return modalState.editItem ? "Редактировать курс" : "Создать курс";
+        if (modalState.type === "theme") return modalState.editItem ? "Редактировать тему" : "Создать тему";
+        return "";
+    };
+    const getDeleteWarningText = (type: string, item: any) => {
+        if (type === "course") return `Удалить курс "${item.name}"? Все темы и задачи будут удалены.`;
+        if (type === "theme") return `Удалить тему "${item.name}"? Все задачи будут удалены.`;
+        return "";
     };
     const openTaskEditor = (themeId: string, themeName: string, task?: any) => setTaskEditorState({ isOpen: true, themeId, themeName, task });
     const closeTaskEditor = () => setTaskEditorState({ isOpen: false, themeId: null, themeName: null, task: null });
@@ -1531,13 +1501,13 @@ export const CoursesManagement = () => {
                             ? () => handleDelete(modalState.type as string, modalState.editItem)
                             : undefined
                     }
-                    title={getModalTitle()}
+                    title={getModalTitleText()}
                     initialName={modalState.editItem?.name || ""}
                     initialDescription={modalState.editItem?.description || ""}
                     isEdit={!!modalState.editItem}
                     deleteWarning={
                         modalState.editItem && modalState.type
-                            ? getDeleteWarning(modalState.type as string, modalState.editItem)
+                            ? getDeleteWarningText(modalState.type as string, modalState.editItem)
                             : undefined
                     }
                     type={modalState.type as "course" | "theme" | undefined}
