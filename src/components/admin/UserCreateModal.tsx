@@ -7,6 +7,7 @@ import {
 } from '../../api';
 import type { CustomStaffRegisterRequest } from '../../api/custom-types';
 import { authApi } from '../../instances/axiosInstance';
+import { getApiErrorMessage } from '../../utils/apiError';
 
 interface UserCreateModalProps {
   isOpen: boolean;
@@ -244,6 +245,8 @@ export const UserCreateModal: React.FC<UserCreateModalProps> = ({ isOpen, onClos
       onClose();
     } catch (e) {
       console.error('Create user error', e);
+      setError(getApiErrorMessage(e, 'Не удалось создать пользователя.'));
+      return;
       setError('Не удалось создать пользователя');
     } finally {
       setLoading(false);

@@ -154,10 +154,7 @@ export const TaskEditor = ({
             style={{
               padding: "24px 24px 16px",
               borderBottom: "1px solid var(--color-border)",
-              position: "sticky",
-              top: 0,
               background: "var(--color-bg)",
-              zIndex: 1,
             }}
           >
             <div
@@ -396,8 +393,6 @@ export const TaskEditor = ({
               display: "flex",
               justifyContent: "flex-end",
               gap: "12px",
-              position: "sticky",
-              bottom: 0,
               background: "var(--color-bg)",
             }}
           >

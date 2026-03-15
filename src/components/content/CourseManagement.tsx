@@ -1,4 +1,5 @@
 import React, { useState, useEffect, type ReactNode } from "react";
+import axios from "axios";
 import { axiosInstance } from "../../instances/axiosInstance";
 import { useContent } from "../../context/content/UseContent.ts";
 import { CreateEditModal } from "./CreateEditModal";
@@ -6,6 +7,7 @@ import TaskEditorModal from "./task-editor/TaskEditorModal.tsx";
 import { taskTypesToRu } from './task-editor/TaskModels';
 import type { TaskModel } from "./task-editor/TaskModels";
 import contentService from "../../services/ContentService";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 
 // New types for tree structure
@@ -14,26 +16,265 @@ export type ThemeTreeNode = {
     children: ThemeTreeNode[];
 };
 
+const getThemePosition = (theme: any, overrides?: Record<string, number>): number =>
+    overrides?.[theme?.id] ?? theme?.position ?? theme?.orderNum ?? 0;
+const compareThemeNodes = (a: ThemeTreeNode, b: ThemeTreeNode, overrides?: Record<string, number>): number =>
+    getThemePosition(a.theme, overrides) - getThemePosition(b.theme, overrides);
+const compareTaskModels = (a: TaskModel, b: TaskModel): number =>
+    (a.position ?? 0) - (b.position ?? 0);
+
+const updateThemePositionApi = async (theme: any, position: number) => {
+    const attempts = [
+        {
+            label: "orderNum",
+            payload: {
+                name: theme.name,
+                description: theme.description ?? "",
+                orderNum: position,
+            },
+        },
+        {
+            label: "position",
+            payload: {
+                name: theme.name,
+                description: theme.description ?? "",
+                position,
+            },
+        },
+        {
+            label: "orderNum+position",
+            payload: {
+                name: theme.name,
+                description: theme.description ?? "",
+                orderNum: position,
+                position,
+            },
+        },
+    ];
+
+    let lastError: unknown;
+
+    for (const attempt of attempts) {
+        try {
+            return await axiosInstance.put(`/content/themes/${theme.id}`, attempt.payload);
+        } catch (error) {
+            lastError = error;
+            if (axios.isAxiosError(error)) {
+                console.warn(
+                    "THEME_DEBUG reorder attempt failed\n" +
+                    JSON.stringify(
+                        {
+                            id: theme.id,
+                            name: theme.name,
+                            attempt: attempt.label,
+                            status: error.response?.status,
+                            payload: attempt.payload,
+                            response: error.response?.data,
+                        },
+                        null,
+                        2,
+                    ),
+                );
+            }
+        }
+    }
+
+    throw lastError;
+};
+
+const getTaskTypeArray = (task: TaskModel): string[] =>
+    Array.isArray(task.taskType) ? task.taskType : [];
+
+const updateTaskPositionApi = async (task: TaskModel, themeId: string, position: number) => {
+    const attempts = [
+        {
+            label: "minimal",
+            payload: {
+                themeId,
+                position,
+            },
+        },
+        {
+            label: "full-spec",
+            payload: {
+                themeId,
+                taskBody: task.taskBody,
+                taskTypes: getTaskTypeArray(task),
+                question: task.question ?? null,
+                position,
+            },
+        },
+    ];
+
+    let lastError: unknown;
+
+    for (const attempt of attempts) {
+        try {
+            return await axiosInstance.put(`/task/${task.id}`, attempt.payload);
+        } catch (error) {
+            lastError = error;
+            if (axios.isAxiosError(error)) {
+                console.warn(
+                    "TASK_DEBUG reorder attempt failed\n" +
+                    JSON.stringify(
+                        {
+                            id: task.id,
+                            attempt: attempt.label,
+                            status: error.response?.status,
+                            payload: attempt.payload,
+                            response: error.response?.data,
+                        },
+                        null,
+                        2,
+                    ),
+                );
+            }
+        }
+    }
+
+    throw lastError;
+};
+
 interface ThemeTreeNodeComponentProps {
     node: ThemeTreeNode;
+    courseId: string;
+    siblingThemes: any[];
     expandedThemes: string[];
     onThemeClick: (id: string) => void;
     openModal: (type: "course" | "section" | "theme", parentId?: string | null, editItem?: any, courseId?: string) => void;
     openTaskEditor: (themeId: string, themeName: string, task?: TaskModel | null) => void;
     taskModels: Record<string, TaskModel[]>;
+    taskOverrides: Record<string, TaskModel[]>;
+    themePositionOverrides: Record<string, number>;
     deleteTaskModel: any;
     themeTaskCounts: {[themeId: string]: number};
     handleDeleteTask: (taskId: string, themeId: string) => void;
     taskRefreshTrigger: number; // Add this to force task list refresh
     handleDeleteTheme: (theme: any) => void; // Add this to handle theme deletion
+    moveTheme: (theme: any, siblingThemes: any[], courseId: string, direction: -1 | 1) => Promise<void>;
+    moveTask: (themeId: string, tasks: TaskModel[], task: TaskModel, direction: -1 | 1) => Promise<void>;
+    reorderThemes: (courseId: string, siblingThemes: any[], draggedThemeId: string, targetThemeId: string) => Promise<void>;
+    reorderTasks: (themeId: string, tasks: TaskModel[], draggedTaskId: string, targetTaskId: string) => Promise<void>;
+    draggedThemeId: string | null;
+    setDraggedThemeId: React.Dispatch<React.SetStateAction<string | null>>;
+    draggedTaskId: string | null;
+    setDraggedTaskId: React.Dispatch<React.SetStateAction<string | null>>;
+    movingThemeId: string | null;
+    movingTaskId: string | null;
 }
 
 const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) => {
-    const { node, expandedThemes, onThemeClick, openModal, openTaskEditor, taskModels, deleteTaskModel, themeTaskCounts, handleDeleteTask, taskRefreshTrigger, handleDeleteTheme } = props;
+    const {
+        node,
+        courseId,
+        siblingThemes,
+        expandedThemes,
+        onThemeClick,
+        openModal,
+        openTaskEditor,
+        taskModels,
+        taskOverrides,
+        themePositionOverrides,
+        deleteTaskModel,
+        themeTaskCounts,
+        handleDeleteTask,
+        taskRefreshTrigger,
+        handleDeleteTheme,
+        moveTheme,
+        moveTask,
+        reorderThemes,
+        reorderTasks,
+        draggedThemeId,
+        setDraggedThemeId,
+        draggedTaskId,
+        setDraggedTaskId,
+        movingThemeId,
+        movingTaskId,
+    } = props;
     const theme = node.theme;
     const hasChildren = node.children && node.children.length > 0;
     const isExpanded = expandedThemes.includes(theme.id);
     const [tasks, setTasks] = useState<TaskModel[]>([]);
+    const [dragOverThemeId, setDragOverThemeId] = useState<string | null>(null);
+    const [dragOverTaskId, setDragOverTaskId] = useState<string | null>(null);
+    const orderedChildren = [...node.children].sort((a, b) => compareThemeNodes(a, b, themePositionOverrides));
+    const orderedTasks = [...(taskOverrides[theme.id] ?? taskModels[theme.id] ?? tasks)].sort(compareTaskModels);
+    const themeIndex = siblingThemes.findIndex((item) => item.id === theme.id);
+    const canMoveThemeUp = themeIndex > 0;
+    const canMoveThemeDown = themeIndex >= 0 && themeIndex < siblingThemes.length - 1;
+    const handleMoveTask = (task: TaskModel, direction: -1 | 1) => {
+        const currentIndex = orderedTasks.findIndex((item) => item.id === task.id);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= orderedTasks.length) {
+            return;
+        }
+
+        const reordered = [...orderedTasks];
+        const [movedTask] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, movedTask);
+        console.warn("TASK_DEBUG local reorder", {
+            themeId: theme.id,
+            direction,
+            currentIndex,
+            targetIndex,
+            reordered: reordered.map((item, index) => ({
+                id: item.id,
+                question: item.question,
+                position: index,
+            })),
+        });
+        setTasks(
+            reordered.map((item, index) => ({
+                ...item,
+                position: index,
+            })),
+        );
+        void moveTask(theme.id, orderedTasks, task, direction);
+    };
+    const handleThemeDragStart = (event: React.DragEvent<HTMLDivElement>) => {
+        setDraggedThemeId(theme.id);
+        event.dataTransfer.setData("application/x-theme-id", theme.id);
+        event.dataTransfer.effectAllowed = "move";
+    };
+    const handleThemeDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+        if (!draggedThemeId || draggedThemeId === theme.id || !siblingThemes.some((item) => item.id === draggedThemeId)) {
+            return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setDragOverThemeId(theme.id);
+    };
+    const handleThemeDrop = (event: React.DragEvent<HTMLDivElement>) => {
+        setDragOverThemeId(null);
+        if (!draggedThemeId || draggedThemeId === theme.id || !siblingThemes.some((item) => item.id === draggedThemeId)) {
+            return;
+        }
+        event.preventDefault();
+        setDraggedThemeId(null);
+        void reorderThemes(courseId, siblingThemes, draggedThemeId, theme.id);
+    };
+    const handleTaskDragStart = (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
+        setDraggedTaskId(taskId);
+        event.dataTransfer.setData("application/x-task-id", taskId);
+        event.dataTransfer.effectAllowed = "move";
+    };
+    const handleTaskDragOver = (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
+        if (!draggedTaskId || draggedTaskId === taskId) {
+            return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        setDragOverTaskId(taskId);
+    };
+    const handleTaskDrop = (event: React.DragEvent<HTMLDivElement>, taskId: string) => {
+        setDragOverTaskId(null);
+        if (!draggedTaskId || draggedTaskId === taskId) {
+            return;
+        }
+        event.preventDefault();
+        setDraggedTaskId(null);
+        void reorderTasks(theme.id, orderedTasks, draggedTaskId, taskId);
+    };
 
     // Get task count from props instead of loading tasks
     const taskCount = themeTaskCounts[theme.id] || 0;
@@ -41,10 +282,24 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
     // Only load tasks for display when expanded (not for counting)
     useEffect(() => {
         if (isExpanded && !hasChildren) {
-            console.log(`📋 Loading tasks for display for theme ${theme.name} (${theme.id})`);
-            axiosInstance.get(`/content/themes/${theme.id}/tasks`)
+            console.warn("TASK_DEBUG loading list", {
+                themeId: theme.id,
+                themeName: theme.name,
+            });
+            axiosInstance.get(`/task/theme/${theme.id}`)
                 .then((res: any) => {
-                    setTasks(res.data as TaskModel[]);
+                    const items = Array.isArray(res.data) ? (res.data as TaskModel[]) : [];
+                    console.warn("TASK_DEBUG loaded list", {
+                        themeId: theme.id,
+                        tasks: items.map((item) => ({
+                            id: item.id,
+                            question: item.question,
+                            position: item.position,
+                        })),
+                    });
+                    setTasks(
+                        [...items].sort(compareTaskModels),
+                    );
                 })
                 .catch((err: unknown) => {
                     console.error(`Failed to load tasks for theme ${theme.id}:`, err);
@@ -72,7 +327,7 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
     }
     // If no children and no tasks -> show both buttons (default)
 
-    // Debug logging
+    if (false) {
     console.log(`🔍 Theme "${theme.name}" (${theme.id}):`, {
         taskCount,
         hasChildren,
@@ -80,33 +335,57 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
         showCreateTask,
         themeTaskCountsHasThisId: theme.id in themeTaskCounts
     });
+    }
 
     return (
         <div style={{ marginBottom: "8px", marginLeft: theme.parentThemeId ? 20 : 0 }}>
             <div
                 onClick={() => onThemeClick(theme.id)}
+                draggable
+                onDragStart={handleThemeDragStart}
+                onDragEnd={() => {
+                    setDragOverThemeId(null);
+                    setDraggedThemeId(null);
+                }}
+                onDragOver={handleThemeDragOver}
+                onDragLeave={() => setDragOverThemeId((current) => (current === theme.id ? null : current))}
+                onDrop={handleThemeDrop}
                 style={{
                     padding: "10px 14px",
-                    background: "var(--color-card)",
-                    border: "1px solid var(--color-border)",
+                    background: dragOverThemeId === theme.id ? "rgba(255, 99, 71, 0.08)" : "var(--color-card)",
+                    border: dragOverThemeId === theme.id ? "1px solid var(--color-primary)" : "1px solid var(--color-border)",
                     borderRadius: "4px",
-                    cursor: "pointer",
+                    cursor: movingThemeId === theme.id ? "grabbing" : "grab",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center",
                 }}
             >
-                <div style={{ flex: 1 }}>
-                    <strong>{theme.name}</strong>
-                    {theme.description && (
-                        <p style={{ margin: "2px 0 0 0", fontSize: "0.85rem", color: "var(--color-text-secondary)" }}>{theme.description}</p>
-                    )}
-                    <div style={{ marginTop: "2px", fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>
-                        {hasChildren
-                            ? `Подтем: ${node.children.length}`
-                            : taskCount > 0
-                                ? `Задач: ${taskCount}`
-                                : "Задач: 0"}
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flex: 1, minWidth: 0 }}>
+                    <span
+                        title="?????????? ????"
+                        style={{
+                            color: "var(--color-text-secondary)",
+                            fontSize: "1rem",
+                            cursor: movingThemeId === theme.id ? "grabbing" : "grab",
+                            userSelect: "none",
+                            flexShrink: 0,
+                        }}
+                    >
+                        ::
+                    </span>
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                        <strong>{theme.name}</strong>
+                        {theme.description && (
+                            <p style={{ margin: "2px 0 0 0", fontSize: "0.85rem", color: "var(--color-text-secondary)" }}>{theme.description}</p>
+                        )}
+                        <div style={{ marginTop: "2px", fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>
+                            {hasChildren
+                                ? `????????????: ${node.children.length}`
+                                : taskCount > 0
+                                    ? `??????????: ${taskCount}`
+                                    : "??????????: 0"}
+                        </div>
                     </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -149,37 +428,96 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
             {/* Render children recursively if expanded */}
             {isExpanded && hasChildren && (
                 <div style={{ marginLeft: 20 }}>
-                    {node.children.map((child: ThemeTreeNode) => (
+                    {orderedChildren.map((child: ThemeTreeNode) => (
                         <ThemeTreeNodeComponent
                             key={child.theme.id}
                             node={child}
+                            courseId={courseId}
+                            siblingThemes={orderedChildren.map((item) => item.theme)}
                             expandedThemes={expandedThemes}
                             onThemeClick={onThemeClick}
                             openModal={openModal}
                             openTaskEditor={openTaskEditor}
                             taskModels={taskModels}
+                            taskOverrides={taskOverrides}
+                            themePositionOverrides={themePositionOverrides}
                             deleteTaskModel={deleteTaskModel}
                             themeTaskCounts={themeTaskCounts}
                             handleDeleteTask={handleDeleteTask}
                             taskRefreshTrigger={taskRefreshTrigger}
                             handleDeleteTheme={handleDeleteTheme}
+                            moveTheme={moveTheme}
+                            moveTask={moveTask}
+                            reorderThemes={reorderThemes}
+                            reorderTasks={reorderTasks}
+                            draggedThemeId={draggedThemeId}
+                            setDraggedThemeId={setDraggedThemeId}
+                            draggedTaskId={draggedTaskId}
+                            setDraggedTaskId={setDraggedTaskId}
+                            movingThemeId={movingThemeId}
+                            movingTaskId={movingTaskId}
                         />
                     ))}
                 </div>
             )}
             {/* Show tasks if expanded and no children */}
-            {isExpanded && !hasChildren && tasks.length > 0 && (
+            {isExpanded && !hasChildren && orderedTasks.length > 0 && (
                 <div style={{ marginTop: "8px", paddingLeft: "20px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                         <h6 style={{ margin: 0, fontWeight: 600 }}>Задачи (новый редактор)</h6>
                     </div>
-                    {tasks.map((task: TaskModel) => (
-                        <div key={task.id} style={{ padding: "8px 12px", background: "var(--color-bg)", border: "1px solid var(--color-border)", borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                                <span>{task.question || "Без вопроса"}</span>
-                                <div style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>{taskTypesToRu(task.taskType as any)}</div>
+                    {orderedTasks.map((task: TaskModel, taskIndex: number) => (
+                        <div
+                            key={task.id}
+                            draggable
+                            onDragStart={(event) => handleTaskDragStart(event, task.id)}
+                            onDragEnd={() => {
+                                setDragOverTaskId(null);
+                                setDraggedTaskId(null);
+                            }}
+                            onDragOver={(event) => handleTaskDragOver(event, task.id)}
+                            onDragLeave={() => setDragOverTaskId((current) => (current === task.id ? null : current))}
+                            onDrop={(event) => handleTaskDrop(event, task.id)}
+                            style={{
+                                padding: "8px 12px",
+                                background: dragOverTaskId === task.id ? "rgba(255, 99, 71, 0.08)" : "var(--color-bg)",
+                                border: dragOverTaskId === task.id ? "1px solid var(--color-primary)" : "1px solid var(--color-border)",
+                                borderRadius: "4px",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                gap: "12px",
+                                overflow: "hidden",
+                                cursor: movingTaskId === task.id ? "grabbing" : "grab",
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1, maxWidth: "100%", overflow: "hidden" }}>
+                                <span
+                                    title="?????????? ??????"
+                                    style={{
+                                        color: "var(--color-text-secondary)",
+                                        fontSize: "1rem",
+                                        cursor: movingTaskId === task.id ? "grabbing" : "grab",
+                                        userSelect: "none",
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    ::
+                                </span>
+                                <div style={{ minWidth: 0, flex: 1, maxWidth: "100%", overflow: "hidden" }}>
+                                    <span
+                                        style={{
+                                            display: "block",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                        title={task.question || "??? ???????"}
+                                    >{task.question || "?????? ??????????????"}</span>
+                                    <div style={{ fontSize: "0.8rem", color: "var(--color-text-secondary)" }}>{taskTypesToRu(task.taskType as any)}</div>
+                                </div>
                             </div>
-                            <div style={{ display: "flex", gap: "4px" }}>
+                            <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
                                 <button
                                     onClick={() => openTaskEditor(theme.id, theme.name, task)}
                                     style={{ padding: "2px 6px", background: "var(--color-border)", border: "none", borderRadius: "2px", cursor: "pointer", fontSize: "0.7rem" }}
@@ -201,7 +539,13 @@ const ThemeTreeNodeComponent: React.FC<ThemeTreeNodeComponentProps> = (props) =>
 export const CoursesManagement = () => {
     const [courseTaskCounts, setCourseTaskCounts] = useState<{[courseId: string]: number}>({});
     const [themeTaskCounts, setThemeTaskCounts] = useState<{[themeId: string]: number}>({});
+    const [taskOverrides, setTaskOverrides] = useState<Record<string, TaskModel[]>>({});
+    const [themePositionOverrides, setThemePositionOverrides] = useState<Record<string, number>>({});
     const [taskRefreshTrigger, setTaskRefreshTrigger] = useState(0); // Add trigger for task list refresh
+    const [draggedThemeId, setDraggedThemeId] = useState<string | null>(null);
+    const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+    const [movingThemeId, setMovingThemeId] = useState<string | null>(null);
+    const [movingTaskId, setMovingTaskId] = useState<string | null>(null);
 
     const {
         courses,
@@ -303,6 +647,7 @@ export const CoursesManagement = () => {
         posterId?: string | null;
         isPublished?: boolean;
     }) => {
+        try {
         if (modalState.type === "course") {
             // Use correct argument signature for updateCourse and createCourse
             if (modalState.editItem) {
@@ -373,8 +718,14 @@ export const CoursesManagement = () => {
             }
         }
         closeModal();
+        } catch (error) {
+            console.error("Save modal failed:", error);
+            window.alert(getApiErrorMessage(error, "Не удалось сохранить изменения."));
+            throw error;
+        }
     };
     const handleDelete = async (type: string, item: any) => {
+        try {
         if (type === "course") {
             await deleteCourse(item.id);
             await loadCourses();
@@ -404,6 +755,11 @@ export const CoursesManagement = () => {
             });
         }
         closeModal();
+        } catch (error) {
+            console.error("Delete modal failed:", error);
+            window.alert(getApiErrorMessage(error, "Не удалось удалить объект."));
+            throw error;
+        }
     };
     const getModalTitle = () => {
         if (modalState.type === "course") return modalState.editItem ? "Редактировать курс" : "Создать курс";
@@ -425,7 +781,15 @@ export const CoursesManagement = () => {
     };
     const openTaskEditor = (themeId: string, themeName: string, task?: any) => setTaskEditorState({ isOpen: true, themeId, themeName, task });
     const closeTaskEditor = () => setTaskEditorState({ isOpen: false, themeId: null, themeName: null, task: null });
-    const loadTaskModels = (_themeId: string) => {};
+    const refreshThemeTasks = async (themeId: string) => {
+        setTaskOverrides((prev) => {
+            const next = { ...prev };
+            delete next[themeId];
+            return next;
+        });
+        await refreshThemeTaskCount(themeId);
+        setTaskRefreshTrigger((prev: number) => prev + 1);
+    };
 
     // Fetch task counts for all themes whenever theme tree changes
     useEffect(() => {
@@ -451,8 +815,6 @@ export const CoursesManagement = () => {
                 }
             });
 
-            console.log('Fetching task counts for themes:', allThemeIds);
-
             if (allThemeIds.length > 0) {
                 const counts: {[themeId: string]: number} = {};
                 
@@ -464,14 +826,12 @@ export const CoursesManagement = () => {
                         const taskCountMap = response.data as Record<string, number>;
                         const totalTasks = Object.values(taskCountMap).reduce((sum: number, count: number) => sum + (typeof count === 'number' ? count : 0), 0);
                         counts[themeId] = totalTasks;
-                        console.log(`Theme ${themeId}: ${totalTasks} tasks`);
                     } catch (error) {
                         counts[themeId] = 0;
                         console.error(`Error getting task count for theme ${themeId}:`, error);
                     }
                 }
                 
-                console.log('Setting theme task counts:', counts);
                 setThemeTaskCounts(counts);
             }
         };
@@ -490,7 +850,6 @@ export const CoursesManagement = () => {
             const taskCountMap = response.data as Record<string, number>;
             const totalTasks = Object.values(taskCountMap).reduce((sum: number, count: number) => sum + (typeof count === 'number' ? count : 0), 0);
             setThemeTaskCounts((prev: Record<string, number>) => ({ ...prev, [themeId]: totalTasks }));
-            console.log(`Refreshed task count for theme ${themeId}: ${totalTasks} tasks`);
         } catch (error) {
             setThemeTaskCounts((prev: Record<string, number>) => ({ ...prev, [themeId]: 0 }));
             console.error(`Error refreshing task count for theme ${themeId}:`, error);
@@ -506,6 +865,218 @@ export const CoursesManagement = () => {
             // Trigger refresh of task lists by incrementing the refresh trigger
             setTaskRefreshTrigger((prev: number) => prev + 1);
         }
+    };
+
+    const persistThemeOrder = async (courseId: string, reordered: any[], movedThemeId: string) => {
+        setMovingThemeId(movedThemeId);
+        try {
+            setThemePositionOverrides((prev) => ({
+                ...prev,
+                ...Object.fromEntries(reordered.map((item, index) => [item.id, index])),
+            }));
+            console.warn("THEME_DEBUG sending reorder", {
+                courseId,
+                movedThemeId,
+                payloads: reordered.map((item, index) => ({
+                    id: item.id,
+                    name: item.name,
+                    position: index,
+                })),
+            });
+            await Promise.all(
+                reordered.map((item, index) =>
+                    updateThemePositionApi(item, index).then((response) => {
+                        console.warn("THEME_DEBUG reorder response", {
+                            id: item.id,
+                            status: response.status,
+                            data: response.data,
+                        });
+                        return response;
+                    }),
+                ),
+            );
+            await loadThemeTree(courseId, "course");
+        } catch (error) {
+            console.error("Failed to reorder themes:", error);
+            window.alert(getApiErrorMessage(error, "Не удалось изменить порядок тем."));
+        } finally {
+            setMovingThemeId(null);
+        }
+    };
+
+    const persistTaskOrder = async (themeId: string, reorderedWithPositions: TaskModel[], movedTaskId: string) => {
+        setMovingTaskId(movedTaskId);
+        try {
+            console.warn("TASK_DEBUG sending reorder", {
+                themeId,
+                movedTaskId,
+                payloads: reorderedWithPositions.map((item, index) => ({
+                    id: item.id,
+                    position: index,
+                    taskTypes: getTaskTypeArray(item),
+                })),
+            });
+            setTaskOverrides((prev) => ({
+                ...prev,
+                [themeId]: reorderedWithPositions,
+            }));
+            await Promise.all(
+                reorderedWithPositions.map((item, index) =>
+                    updateTaskPositionApi(item, themeId, index).then((response) => {
+                        console.warn("TASK_DEBUG reorder response", {
+                            id: item.id,
+                            status: response.status,
+                            data: response.data,
+                        });
+                        return response;
+                    }),
+                ),
+            );
+            await refreshThemeTasks(themeId);
+        } catch (error) {
+            console.error("Failed to reorder tasks:", error);
+            await refreshThemeTasks(themeId);
+            window.alert(getApiErrorMessage(error, "Не удалось изменить порядок задач."));
+        } finally {
+            setMovingTaskId(null);
+        }
+    };
+
+    const moveTheme = async (theme: any, siblingThemes: any[], courseId: string, direction: -1 | 1) => {
+        const currentIndex = siblingThemes.findIndex((item) => item.id === theme.id);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= siblingThemes.length) {
+            return;
+        }
+
+        const reordered = [...siblingThemes];
+        const [movedTheme] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, movedTheme);
+        await persistThemeOrder(courseId, reordered, theme.id);
+        return;
+
+        setMovingThemeId(theme.id);
+        try {
+            setThemePositionOverrides((prev) => ({
+                ...prev,
+                ...Object.fromEntries(reordered.map((item, index) => [item.id, index])),
+            }));
+            console.warn("THEME_DEBUG sending reorder", {
+                courseId,
+                movedThemeId: theme.id,
+                payloads: reordered.map((item, index) => ({
+                    id: item.id,
+                    name: item.name,
+                    position: index,
+                })),
+            });
+            await Promise.all(
+                reordered.map((item, index) =>
+                    updateThemePositionApi(item, index).then((response) => {
+                        console.warn("THEME_DEBUG reorder response", {
+                            id: item.id,
+                            status: response.status,
+                            data: response.data,
+                        });
+                        return response;
+                    }),
+                ),
+            );
+            await loadThemeTree(courseId, "course");
+        } catch (error) {
+            console.error("Failed to reorder themes:", error);
+            window.alert(getApiErrorMessage(error, "Не удалось изменить порядок тем."));
+        } finally {
+            setMovingThemeId(null);
+        }
+    };
+
+    const moveTask = async (themeId: string, tasks: TaskModel[], task: TaskModel, direction: -1 | 1) => {
+        const currentIndex = tasks.findIndex((item) => item.id === task.id);
+        const targetIndex = currentIndex + direction;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= tasks.length) {
+            return;
+        }
+
+        const reordered = [...tasks];
+        const [movedTask] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, movedTask);
+
+        setMovingTaskId(task.id);
+        const reorderedForMove = reordered.map((item, index) => ({
+            ...item,
+            position: index,
+        }));
+        await persistTaskOrder(themeId, reorderedForMove, task.id);
+        return;
+        try {
+            const reorderedWithPositions = reordered.map((item, index) => ({
+                ...item,
+                position: index,
+            }));
+            console.warn("TASK_DEBUG sending reorder", {
+                themeId,
+                movedTaskId: task.id,
+                payloads: reorderedWithPositions.map((item, index) => ({
+                    id: item.id,
+                    position: index,
+                    taskTypes: getTaskTypeArray(item),
+                })),
+            });
+            setTaskOverrides((prev) => ({
+                ...prev,
+                [themeId]: reorderedWithPositions,
+            }));
+            await Promise.all(
+                reorderedWithPositions.map((item, index) =>
+                    updateTaskPositionApi(item, themeId, index).then((response) => {
+                        console.warn("TASK_DEBUG reorder response", {
+                            id: item.id,
+                            status: response.status,
+                            data: response.data,
+                        });
+                        return response;
+                    }),
+                ),
+            );
+            await refreshThemeTasks(themeId);
+        } catch (error) {
+            console.error("Failed to reorder tasks:", error);
+            await refreshThemeTasks(themeId);
+            window.alert(getApiErrorMessage(error, "Не удалось изменить порядок задач."));
+        } finally {
+            setMovingTaskId(null);
+        }
+    };
+
+    const reorderThemes = async (courseId: string, siblingThemes: any[], draggedThemeId: string, targetThemeId: string) => {
+        const currentIndex = siblingThemes.findIndex((item) => item.id === draggedThemeId);
+        const targetIndex = siblingThemes.findIndex((item) => item.id === targetThemeId);
+        if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) {
+            return;
+        }
+
+        const reordered = [...siblingThemes];
+        const [movedTheme] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, movedTheme);
+        await persistThemeOrder(courseId, reordered, draggedThemeId);
+    };
+
+    const reorderTasks = async (themeId: string, tasks: TaskModel[], draggedTaskId: string, targetTaskId: string) => {
+        const currentIndex = tasks.findIndex((item) => item.id === draggedTaskId);
+        const targetIndex = tasks.findIndex((item) => item.id === targetTaskId);
+        if (currentIndex < 0 || targetIndex < 0 || currentIndex === targetIndex) {
+            return;
+        }
+
+        const reordered = [...tasks];
+        const [movedTask] = reordered.splice(currentIndex, 1);
+        reordered.splice(targetIndex, 0, movedTask);
+        const reorderedWithPositions = reordered.map((item, index) => ({
+            ...item,
+            position: index,
+        }));
+        await persistTaskOrder(themeId, reorderedWithPositions, draggedTaskId);
     };
 
     // Handle theme deletion
@@ -684,10 +1255,17 @@ export const CoursesManagement = () => {
             <div>
                 <div
                     style={{
+                        position: "sticky",
+                        top: 0,
+                        zIndex: 5,
                         display: "flex",
                         justifyContent: "space-between",
                         alignItems: "center",
                         marginBottom: "24px",
+                        padding: "12px 0",
+                        background: "color-mix(in srgb, var(--color-bg) 94%, transparent)",
+                        backdropFilter: "blur(6px)",
+                        borderBottom: "1px solid color-mix(in srgb, var(--color-border) 70%, transparent)",
                     }}
                 >
                     <h2 style={{margin: 0, fontWeight: 700, fontSize: "1.5rem"}}>
@@ -895,6 +1473,7 @@ export const CoursesManagement = () => {
                                                     justifyContent: "space-between",
                                                     alignItems: "center",
                                                     marginBottom: "12px",
+                                                    padding: "10px 0",
                                                 }}
                                             >
                                                 <h4 style={{margin: 0, fontWeight: 600}}>Темы</h4>
@@ -915,21 +1494,35 @@ export const CoursesManagement = () => {
                                             </div>
 
                                             {/* Recursive theme tree rendering */}
-                                            {themeTree[course.id]?.map((node: ThemeTreeNode) => (
+                                            {[...(themeTree[course.id] || [])].sort((a: ThemeTreeNode, b: ThemeTreeNode) => compareThemeNodes(a, b, themePositionOverrides)).map((node: ThemeTreeNode) => (
                                                 <ThemeTreeNodeComponent
                                                     key={node.theme.id}
                                                     node={node}
+                                                    courseId={course.id}
+                                                    siblingThemes={[...(themeTree[course.id] || [])].sort((a: ThemeTreeNode, b: ThemeTreeNode) => compareThemeNodes(a, b, themePositionOverrides)).map((item: ThemeTreeNode) => item.theme)}
                                                     expandedThemes={expandedThemes}
                                                     onThemeClick={handleThemeClick}
                                                     openModal={openModal}
                                                     openTaskEditor={openTaskEditor}
                                                     taskModels={taskModels}
+                                                    taskOverrides={taskOverrides}
+                                                    themePositionOverrides={themePositionOverrides}
                                                     deleteTaskModel={deleteTaskModel}
                                                     themeTaskCounts={themeTaskCounts}
                                                     handleDeleteTask={handleDeleteTask}
                                                     taskRefreshTrigger={taskRefreshTrigger}
                                                     handleDeleteTheme={handleDeleteTheme}
-                                                />
+                            moveTheme={moveTheme}
+                            moveTask={moveTask}
+                            reorderThemes={reorderThemes}
+                            reorderTasks={reorderTasks}
+                            draggedThemeId={draggedThemeId}
+                            setDraggedThemeId={setDraggedThemeId}
+                            draggedTaskId={draggedTaskId}
+                            setDraggedTaskId={setDraggedTaskId}
+                            movingThemeId={movingThemeId}
+                            movingTaskId={movingTaskId}
+                        />
                                             ))}
                                         </div>
                                     )}
@@ -967,25 +1560,23 @@ export const CoursesManagement = () => {
                 <TaskEditorModal
                     isOpen={taskEditorState.isOpen}
                     onClose={() => {
+                        const themeId = taskEditorState.themeId;
                         closeTaskEditor();
-                        if (taskEditorState.themeId) {
+                        if (themeId) {
                             // Обновляем список после закрытия
-                            loadTaskModels(taskEditorState.themeId);
-                            refreshThemeTaskCount(taskEditorState.themeId);
+                            refreshThemeTasks(themeId);
                         }
                     }}
                     themeId={taskEditorState.themeId!}
                     initialTask={taskEditorState.task || undefined}
                     onCreated={() => {
                         if (taskEditorState.themeId) {
-                            loadTaskModels(taskEditorState.themeId);
-                            refreshThemeTaskCount(taskEditorState.themeId);
+                            refreshThemeTasks(taskEditorState.themeId);
                         }
                     }}
                     onUpdated={() => {
                         if (taskEditorState.themeId) {
-                            loadTaskModels(taskEditorState.themeId);
-                            refreshThemeTaskCount(taskEditorState.themeId);
+                            refreshThemeTasks(taskEditorState.themeId);
                         }
                     }}
                 />

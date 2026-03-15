@@ -1,6 +1,7 @@
 import styles from "../ContentEditor.module.css";
 import {RichTextEditor} from "../RichTextEditor";
 import type {Pair} from "../TaskModels";
+import {CompactEditorItem, plainTextPreview} from "./CompactEditorItem";
 
 export function PairsEditor({
     title,
@@ -29,7 +30,7 @@ export function PairsEditor({
 
     return (
         <>
-            <div className={styles.header} style={{marginTop: 4}}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 4}}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     {title}
                 </h4>
@@ -41,38 +42,45 @@ export function PairsEditor({
             </div>
             <div className={styles.list}>
                 {pairs.map(([left, right], idx) => (
-                    <div key={idx} className={styles.card}>
-                        {!disabled && (
-                            <button className={styles.removeButton} onClick={() => removePair(idx)}>
-                                ✕ удалить
-                            </button>
-                        )}
-                        {mediaPreview === "image" && left && (
-                            <div className={styles.mediaPreview}>
-                                <img className={styles.image} src={left} alt="" />
+                    <CompactEditorItem
+                        key={idx}
+                        title={`Пара ${idx + 1}`}
+                        preview={`${plainTextPreview(left, "Пустое левое поле")} -> ${plainTextPreview(right, "Пустое правое поле")}`}
+                        defaultOpen={idx === 0}
+                    >
+                        <div className={styles.card}>
+                            {!disabled && (
+                                <button className={styles.removeButton} onClick={() => removePair(idx)}>
+                                    ✕ удалить
+                                </button>
+                            )}
+                            {mediaPreview === "image" && left && (
+                                <div className={styles.mediaPreview}>
+                                    <img className={styles.image} src={left} alt="" />
+                                </div>
+                            )}
+                            <div className={styles.fieldsColumn}>
+                                <label className={styles.label}>
+                                    Левое поле
+                                    <RichTextEditor
+                                        value={left}
+                                        onChange={(value) => updatePair(idx, 0, value)}
+                                        placeholder={leftPlaceholder}
+                                        disabled={disabled}
+                                    />
+                                </label>
+                                <label className={styles.label}>
+                                    Правое поле
+                                    <RichTextEditor
+                                        value={right}
+                                        onChange={(value) => updatePair(idx, 1, value)}
+                                        placeholder={rightPlaceholder}
+                                        disabled={disabled}
+                                    />
+                                </label>
                             </div>
-                        )}
-                        <div className={styles.fieldsColumn}>
-                            <label className={styles.label}>
-                                Левое поле
-                                <RichTextEditor
-                                    value={left}
-                                    onChange={(value) => updatePair(idx, 0, value)}
-                                    placeholder={leftPlaceholder}
-                                    disabled={disabled}
-                                />
-                            </label>
-                            <label className={styles.label}>
-                                Правое поле
-                                <RichTextEditor
-                                    value={right}
-                                    onChange={(value) => updatePair(idx, 1, value)}
-                                    placeholder={rightPlaceholder}
-                                    disabled={disabled}
-                                />
-                            </label>
                         </div>
-                    </div>
+                    </CompactEditorItem>
                 ))}
             </div>
         </>

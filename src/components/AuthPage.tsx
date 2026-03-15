@@ -4,6 +4,7 @@ import {UserRoleEnum, UserSystemLanguageEnum, StaffRegisterRequestRoleEnum} from
 import {useAuth} from "../context/auth/UseAuth";
 import {useTheme} from "../context/theme/UseTheme.tsx";
 import {ThemeSwitcher} from "./shared/ThemeSwitcher.tsx";
+import {getApiErrorMessage} from "../utils/apiError";
 
 export const AuthPage = () => {
     const [mode, setMode] = useState<"login" | "register">("login");
@@ -106,7 +107,7 @@ export const AuthPage = () => {
             }
         } catch (err: unknown) {
             console.error("Auth error:", err);
-            setError("Произошла ошибка");
+            setError(getApiErrorMessage(err, "Произошла ошибка авторизации."));
         } finally {
             setIsLoading(false);
         }

@@ -1,6 +1,7 @@
 // frontend/src/components/content/CreateEditModal.tsx
 import React, { useEffect, useState } from "react";
 import { mediaService } from "../../services/MediaService.ts";
+import { getApiErrorMessage } from "../../utils/apiError.ts";
 
 interface CreateEditModalProps {
     isOpen: boolean;
@@ -46,6 +47,7 @@ export const CreateEditModal = ({
     const [description, setDescription] = useState(initialDescription);
     const [isLoading, setIsLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Course-specific
     // authorUrl previously held a URL string; now we use it to store an author image mediaId (uploaded via mediaService)
@@ -62,6 +64,7 @@ export const CreateEditModal = ({
         if (isOpen) {
             setName(initialName);
             setDescription(initialDescription);
+            setError(null);
             setAuthorImageId(initialAuthorUrl);
             setLanguage(initialLanguage);
             setCoursePosterId(initialCoursePosterId ?? null);
@@ -125,6 +128,7 @@ export const CreateEditModal = ({
         if (!name.trim()) return;
         try {
             setIsLoading(true);
+            setError(null);
             await onSave({
                 name: name.trim(),
                 description: description?.trim() || undefined,
@@ -146,6 +150,7 @@ export const CreateEditModal = ({
         if (!onDelete) return;
         try {
             setIsLoading(true);
+            setError(null);
             await onDelete();
             onClose();
             setShowDeleteConfirm(false);
@@ -273,6 +278,21 @@ export const CreateEditModal = ({
                 {!showDeleteConfirm ? (
                     <form onSubmit={handleSubmit}>
                         <h3 style={{ marginTop: 0 }}>{title}</h3>
+                        {error && (
+                            <div
+                                style={{
+                                    marginTop: 12,
+                                    padding: "10px 12px",
+                                    background: "rgba(220, 53, 69, 0.08)",
+                                    border: "1px solid rgba(220, 53, 69, 0.35)",
+                                    borderRadius: 6,
+                                    color: "#dc3545",
+                                    whiteSpace: "pre-wrap",
+                                }}
+                            >
+                                {error}
+                            </div>
+                        )}
 
                         <label style={{ display: "block", marginTop: 12 }}>
                             Название

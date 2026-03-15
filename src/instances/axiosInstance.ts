@@ -1,5 +1,6 @@
 import axios from 'axios';
 import {AuthApi, Configuration} from '../api';
+import { emitApiError, getApiErrorMessage } from '../utils/apiError';
 
 const axiosInstance = axios.create({
     baseURL: import.meta.env.VITE_API_URL || "/api"
@@ -103,6 +104,11 @@ axiosInstance.interceptors.response.use(
                 localStorage.removeItem('refreshToken');
                 localStorage.removeItem('userId');
             }
+        }
+
+        const status = error.response?.status;
+        if (status === 403) {
+            emitApiError(getApiErrorMessage(error));
         }
 
         return Promise.reject(error);

@@ -54,12 +54,17 @@ export function AudioPairsEditor({
         onChange(next as Pair<string, string>[]);
     };
 
+    const setAudioUrl = (idx: number, audio: string) => {
+        const next = pairs.map((p, i) => (i === idx ? [audio, p[1]] : p));
+        onChange(next as Pair<string, string>[]);
+    };
+
     const add = () => onChange([...pairs, ["", ""]]);
     const remove = (idx: number) => onChange(pairs.filter((_, i) => i !== idx));
 
     return (
         <>
-            <div className={styles.header} style={{marginTop: 4}}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 4}}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Аудио + Текст
                 </h4>
@@ -98,6 +103,8 @@ export function AudioPairsEditor({
                                     value={audioVal}
                                     accept="audio/*"
                                     onChange={(f) => setAudio(i, f)}
+                                    onValueChange={(audio) => setAudioUrl(i, audio)}
+                                    urlPlaceholder="https://example.com/audio.mp3"
                                     disabled={disabled}
                                 />
                                 <label className={styles.label}>
@@ -141,12 +148,17 @@ export function ImagePairsEditor({
         onChange(next as Pair<string, string>[]);
     };
 
+    const setImageUrl = (idx: number, image: string) => {
+        const next = pairs.map((p, i) => (i === idx ? [image, p[1]] : p));
+        onChange(next as Pair<string, string>[]);
+    };
+
     const add = () => onChange([...pairs, ["", ""]]);
     const remove = (idx: number) => onChange(pairs.filter((_, i) => i !== idx));
 
     return (
         <>
-            <div className={styles.header} style={{marginTop: 4}}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 4}}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Изображение + Текст
                 </h4>
@@ -185,6 +197,8 @@ export function ImagePairsEditor({
                                     value={imgVal}
                                     accept="image/*"
                                     onChange={(f) => setImage(i, f)}
+                                    onValueChange={(image) => setImageUrl(i, image)}
+                                    urlPlaceholder="https://example.com/image.jpg"
                                     disabled={disabled}
                                 />
                                 <label className={styles.label}>

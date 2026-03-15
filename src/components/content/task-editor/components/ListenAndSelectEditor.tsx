@@ -62,6 +62,10 @@ export function ListenAndSelectEditor({
         updateBlock(idx, {audio: base64});
     };
 
+    const setAudioUrl = (idx: number, audio: string) => {
+        updateBlock(idx, {audio});
+    };
+
     const setVariantText = (idx: number, text: string) =>
         onChange({...value, variants: value.variants.map((variant, i) => (i === idx ? [text, variant[1]] : variant))});
 
@@ -73,7 +77,7 @@ export function ListenAndSelectEditor({
 
     return (
         <div>
-            <div className={styles.header}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Слушать и выбирать
                 </h4>
@@ -131,12 +135,14 @@ export function ListenAndSelectEditor({
                             value={block.audio}
                             accept="audio/*"
                             onChange={(f) => setAudio(i, f)}
+                            onValueChange={(audio) => setAudioUrl(i, audio)}
+                            urlPlaceholder="https://example.com/audio.mp3"
                             disabled={disabled}
                         />
                     </div>
                 ))}
             </div>
-            <div className={styles.header} style={{marginTop: 8}}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 8}}>
                 <h4 className={styles.title} style={{fontSize: "0.95rem"}}>
                     Варианты ответа
                 </h4>

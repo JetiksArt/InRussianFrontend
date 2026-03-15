@@ -4,6 +4,7 @@ import {RichTextEditor} from "../RichTextEditor";
 import {FileInput} from "./FileInput";
 import type {SelectWordsModel} from "../TaskModels";
 import {asDataUrl, fileToBase64, getMediaUrlById, isBareBase64, isDataUrl} from "../mediaUtils";
+import {CompactEditorItem, plainTextPreview} from "./CompactEditorItem";
 
 export function SelectWordsEditor({value, onChange, disabled}: {
     value: SelectWordsModel;
@@ -45,6 +46,10 @@ export function SelectWordsEditor({value, onChange, disabled}: {
         onChange({...value, audio: base64});
     };
 
+    const setAudioUrl = (audio: string) => {
+        onChange({...value, audio});
+    };
+
     const setVariantText = (idx: number, text: string) =>
         onChange({...value, variants: value.variants.map((v, i) => (i === idx ? [text, v[1]] : v))});
 
@@ -56,7 +61,7 @@ export function SelectWordsEditor({value, onChange, disabled}: {
 
     return (
         <div>
-            <div className={styles.header}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Выбор слов
                 </h4>
@@ -72,6 +77,8 @@ export function SelectWordsEditor({value, onChange, disabled}: {
                     value={value.audio}
                     accept="audio/*"
                     onChange={(f) => setAudio(f)}
+                    onValueChange={setAudioUrl}
+                    urlPlaceholder="https://example.com/audio.mp3"
                     disabled={disabled}
                 />
                 {audioPreview ? (
@@ -84,34 +91,40 @@ export function SelectWordsEditor({value, onChange, disabled}: {
             </div>
             <div className={styles.list}>
                 {value.variants.map(([text, correct], i) => (
-                    <div key={i} className={styles.card}>
-                        {!disabled && (
-                            <button className={styles.removeButton} onClick={() => removeVariant(i)}>✕ удалить</button>
-                        )}
-                        <div className={styles.fieldsGrid}>
-                            <label className={styles.label}>
-                                Текст
-                                <RichTextEditor
-                                    value={text}
-                                    onChange={(v) => setVariantText(i, v)}
-                                    disabled={disabled}
-                                />
-                            </label>
-                            <div className={styles.label} style={{display: "flex", alignItems: "center", gap: 8}}>
-                                <input
-                                    type="radio"
-                                    name="select-words-correct"
-                                    checked={correct}
-                                    onChange={() => setOnlyCorrect(i)}
-                                    disabled={disabled}
-                                />
-                                <span>Правильный</span>
+                    <CompactEditorItem
+                        key={i}
+                        title={`Вариант ${i + 1}${correct ? " • правильный" : ""}`}
+                        preview={plainTextPreview(text, "Пустой вариант")}
+                        defaultOpen={i === 0}
+                    >
+                        <div className={styles.card}>
+                            {!disabled && (
+                                <button className={styles.removeButton} onClick={() => removeVariant(i)}>✕ удалить</button>
+                            )}
+                            <div className={styles.fieldsGrid}>
+                                <label className={styles.label}>
+                                    Текст
+                                    <RichTextEditor
+                                        value={text}
+                                        onChange={(v) => setVariantText(i, v)}
+                                        disabled={disabled}
+                                    />
+                                </label>
+                                <div className={styles.label} style={{display: "flex", alignItems: "center", gap: 8}}>
+                                    <input
+                                        type="radio"
+                                        name="select-words-correct"
+                                        checked={correct}
+                                        onChange={() => setOnlyCorrect(i)}
+                                        disabled={disabled}
+                                    />
+                                    <span>Правильный</span>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </CompactEditorItem>
                 ))}
             </div>
         </div>
     );
 }
-

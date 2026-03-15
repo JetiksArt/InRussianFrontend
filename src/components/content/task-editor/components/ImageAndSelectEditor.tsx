@@ -62,6 +62,10 @@ export function ImageAndSelectEditor({
         updateBlock(idx, {image: base64});
     };
 
+    const setImageUrl = (idx: number, image: string) => {
+        updateBlock(idx, {image});
+    };
+
     const setVariantText = (idx: number, text: string) =>
         onChange({...value, variants: value.variants.map((variant, i) => (i === idx ? [text, variant[1]] : variant))});
 
@@ -73,7 +77,7 @@ export function ImageAndSelectEditor({
 
     return (
         <div>
-            <div className={styles.header}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Смотреть и выбирать
                 </h4>
@@ -131,12 +135,14 @@ export function ImageAndSelectEditor({
                             value={block.image}
                             accept="image/*"
                             onChange={(f) => setImage(i, f)}
+                            onValueChange={(image) => setImageUrl(i, image)}
+                            urlPlaceholder="https://example.com/image.jpg"
                             disabled={disabled}
                         />
                     </div>
                 ))}
             </div>
-            <div className={styles.header} style={{marginTop: 8}}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 8}}>
                 <h4 className={styles.title} style={{fontSize: "0.95rem"}}>
                     Варианты ответа
                 </h4>

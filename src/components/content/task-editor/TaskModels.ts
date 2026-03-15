@@ -87,7 +87,9 @@ export type TableCellType = "READONLY" | "WRITABLE";
 
 export interface TableCellModel {
     type: TableCellType;
-    value: string;
+    prefix: string;
+    placeholder?: string | null;
+    suffix: string;
     answer?: string | null;
 }
 
@@ -95,11 +97,7 @@ export interface TableRowModel {
     cells: TableCellModel[];
 }
 
-// New: Theory (ContentBlocks)
-export type ContentKind = "TEXT" | "IMAGE" | "AUDIO";
-
 export interface ContentItem {
-    kind: ContentKind;
     text?: string | null;
     imageUrl?: string | null;
     audioUrl?: string | null;
@@ -161,6 +159,7 @@ export interface TaskModel {
     taskType: TaskType[];
     taskBody: TaskBody;
     question: string | null;
+    position?: number | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -170,12 +169,15 @@ export interface CreateTaskModelRequest {
     taskBody: TaskBody;
     question: string | null;
     taskTypes: TaskType[];
+    position?: number | null;
 }
 
 export interface UpdateTaskModelRequest {
-    themeId: string;
-    taskBody: TaskBody;
-    taskTypes: TaskType[];
+    themeId?: string | null;
+    taskBody?: TaskBody | null;
+    taskTypes?: TaskType[] | null;
+    question?: string | null;
+    position?: number | null;
 }
 
 

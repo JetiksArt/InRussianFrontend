@@ -1,6 +1,7 @@
 import styles from "../ContentEditor.module.css";
 import {UntranslatableField} from "../UntranslatableField";
 import type {StressWordModel} from "../TaskModels";
+import {CompactEditorItem, plainTextPreview} from "./CompactEditorItem";
 
 const OPEN_TAG = "<translatable>";
 const CLOSE_TAG = "</translatable>";
@@ -44,7 +45,7 @@ export function SetTheStressEditor({
 
     return (
         <>
-            <div className={styles.header} style={{marginTop: 4}}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 4}}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Поставьте ударение
                 </h4>
@@ -56,47 +57,54 @@ export function SetTheStressEditor({
             </div>
             <div className={styles.list}>
                 {(value || []).map((item, i) => (
-                    <div key={i} className={styles.card}>
-                        {!disabled && (
-                            <button className={styles.removeButton} onClick={() => removeWord(i)}>
-                                ✕ удалить
-                            </button>
-                        )}
-                        <div className={styles.fieldsColumn}>
-                            <label className={styles.label}>
-                                Слово
-                                <UntranslatableField
-                                    className={styles.input}
-                                    value={item.word || ""}
-                                    onChange={(v) => patchWord(i, {word: v})}
-                                    placeholder="Введите слово"
-                                    disabled={disabled}
-                                />
-                            </label>
-                            <label className={styles.label}>
-                                Индекс ударения
-                                <input
-                                    className={styles.input}
-                                    type="number"
-                                    min={1}
-                                    max={Math.max(1, stripTranslatableTags(item.word || "").length || 1)}
-                                    value={(Number.isFinite(item.stressIndex) ? item.stressIndex : 0) + 1}
-                                    onChange={(e) =>
-                                        patchWord(i, {
-                                            stressIndex: Math.max(
-                                                0,
-                                                (Number.isFinite(+e.target.value) ? Number(e.target.value) : 1) - 1
-                                            ),
-                                        })
-                                    }
-                                    disabled={disabled}
-                                />
-                            </label>
-                            <div className={styles.hint}>
-                                Превью: <strong>{decorateStress(item.word || "", item.stressIndex || 0)}</strong>
+                    <CompactEditorItem
+                        key={i}
+                        title={`Слово ${i + 1}`}
+                        preview={plainTextPreview(decorateStress(item.word || "", item.stressIndex || 0), "Пустое слово")}
+                        defaultOpen={i === 0}
+                    >
+                        <div className={styles.card}>
+                            {!disabled && (
+                                <button className={styles.removeButton} onClick={() => removeWord(i)}>
+                                    ✕ удалить
+                                </button>
+                            )}
+                            <div className={styles.fieldsColumn}>
+                                <label className={styles.label}>
+                                    Слово
+                                    <UntranslatableField
+                                        className={styles.input}
+                                        value={item.word || ""}
+                                        onChange={(v) => patchWord(i, {word: v})}
+                                        placeholder="Введите слово"
+                                        disabled={disabled}
+                                    />
+                                </label>
+                                <label className={styles.label}>
+                                    Индекс ударения
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min={1}
+                                        max={Math.max(1, stripTranslatableTags(item.word || "").length || 1)}
+                                        value={(Number.isFinite(item.stressIndex) ? item.stressIndex : 0) + 1}
+                                        onChange={(e) =>
+                                            patchWord(i, {
+                                                stressIndex: Math.max(
+                                                    0,
+                                                    (Number.isFinite(+e.target.value) ? Number(e.target.value) : 1) - 1
+                                                ),
+                                            })
+                                        }
+                                        disabled={disabled}
+                                    />
+                                </label>
+                                <div className={styles.hint}>
+                                    Превью: <strong>{decorateStress(item.word || "", item.stressIndex || 0)}</strong>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </CompactEditorItem>
                 ))}
             </div>
         </>

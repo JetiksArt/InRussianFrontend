@@ -1,6 +1,22 @@
 import styles from "../ContentEditor.module.css";
 import {RichTextEditor} from "../RichTextEditor";
 import type {GapWithVariantModel, TextInputWithVariantModel} from "../TaskModels";
+import {CompactEditorItem, plainTextPreview} from "./CompactEditorItem";
+
+const TEXT_WITH_GAPS_TITLE = "Текст с вариантами пропусков";
+const TITLE_LABEL = "Заголовок";
+const TEXT_LABEL = "Текст";
+const GAPS_TITLE = "Пропуски";
+const ADD_GAP = "Добавить пропуск";
+const GAP_TITLE = "Пропуск";
+const NO_CORRECT = "Правильный вариант не выбран";
+const OPTIONS_WORD = "вариантов";
+const DELETE_GAP = "✕ Удалить пропуск";
+const POSITION_LABEL = "Позиция";
+const OPTION_LABEL = "Вариант";
+const CORRECT_LABEL = "Правильный";
+const DELETE_OPTION = "Удалить вариант";
+const ADD_OPTION = "Добавить вариант";
 
 export function TextWithVariantGapsEditor({
     value,
@@ -59,12 +75,12 @@ export function TextWithVariantGapsEditor({
 
     return (
         <div>
-            <div className={styles.header} style={{marginTop: 4}}>
-                <h4 className={styles.title} style={{fontSize: "1rem"}}>Текст с вариантами пропусков</h4>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 4}}>
+                <h4 className={styles.title} style={{fontSize: "1rem"}}>{TEXT_WITH_GAPS_TITLE}</h4>
             </div>
             <div className={styles.card}>
                 <label className={styles.label}>
-                    Заголовок
+                    {TITLE_LABEL}
                     <RichTextEditor
                         value={value.label}
                         onChange={(v) => setLabel(v)}
@@ -72,7 +88,7 @@ export function TextWithVariantGapsEditor({
                     />
                 </label>
                 <label className={styles.label}>
-                    Текст
+                    {TEXT_LABEL}
                     <RichTextEditor
                         value={value.text}
                         onChange={(v) => setText(v)}
@@ -80,77 +96,82 @@ export function TextWithVariantGapsEditor({
                     />
                 </label>
             </div>
-            <div className={styles.header} style={{marginTop: 8}}>
-                <h4 className={styles.title} style={{fontSize: "0.95rem"}}>Пропуски</h4>
+            <div className={`${styles.header} ${styles.stickyToolbar}`} style={{marginTop: 8}}>
+                <h4 className={styles.title} style={{fontSize: "0.95rem"}}>{GAPS_TITLE}</h4>
                 {!disabled && (
                     <button className={styles.actionButton} onClick={addGap}>
-                        Добавить пропуск
+                        {ADD_GAP}
                     </button>
                 )}
             </div>
             <div className={styles.list}>
                 {value.gaps.map((gap, i) => (
-                    <div key={i} className={styles.card}>
-                        {!disabled && (
-                            <button className={styles.removeButton} onClick={() => removeGap(i)}>
-                                ✕ удалить
-                            </button>
-                        )}
-                        <div className={styles.fieldsGrid}>
-                            <label className={styles.label}>
-                                Позиция
-                                <input
-                                    className={styles.input}
-                                    type="number"
-                                    min={0}
-                                    value={(gap as any).indexWord}
-                                    onChange={(e) => updateGap(i, {indexWord: Math.max(0, Number(e.target.value || 0))} as any)}
-                                    disabled={disabled}
-                                />
-                            </label>
-                        </div>
-                        <div className={styles.fieldsGrid} style={{marginTop: 8}}>
-                            {gap.variants.map((option, j) => (
-                                <div key={j}>
-                                    <label className={styles.label}>
-                                        Вариант {j + 1}
-                                        <RichTextEditor
-                                            value={option}
-                                            onChange={(v) => setVariant(i, j, v)}
-                                            disabled={disabled}
-                                        />
-                                    </label>
-                                    <div className={styles.label} style={{display: "flex", alignItems: "center", gap: 8}}>
-                                        <input
-                                            type="radio"
-                                            name={`correct-${i}`}
-                                            checked={gap.correctVariant === option}
-                                            onChange={() => updateGap(i, {correctVariant: option})}
-                                            disabled={disabled}
-                                        />
-                                        <span>Правильный</span>
+                    <CompactEditorItem
+                        key={i}
+                        title={`${GAP_TITLE} ${i + 1}`}
+                        preview={`${plainTextPreview(gap.correctVariant, NO_CORRECT)} • ${gap.variants.length} ${OPTIONS_WORD}`}
+                    >
+                        <div className={styles.card}>
+                            {!disabled && (
+                                <button className={styles.removeButton} onClick={() => removeGap(i)}>
+                                    {DELETE_GAP}
+                                </button>
+                            )}
+                            <div className={styles.fieldsGrid}>
+                                <label className={styles.label}>
+                                    {POSITION_LABEL}
+                                    <input
+                                        className={styles.input}
+                                        type="number"
+                                        min={0}
+                                        value={(gap as any).indexWord}
+                                        onChange={(e) => updateGap(i, {indexWord: Math.max(0, Number(e.target.value || 0))} as any)}
+                                        disabled={disabled}
+                                    />
+                                </label>
+                            </div>
+                            <div className={styles.fieldsGrid} style={{marginTop: 8}}>
+                                {gap.variants.map((option, j) => (
+                                    <div key={j}>
+                                        <label className={styles.label}>
+                                            {`${OPTION_LABEL} ${j + 1}`}
+                                            <RichTextEditor
+                                                value={option}
+                                                onChange={(v) => setVariant(i, j, v)}
+                                                disabled={disabled}
+                                            />
+                                        </label>
+                                        <div className={styles.label} style={{display: "flex", alignItems: "center", gap: 8}}>
+                                            <input
+                                                type="radio"
+                                                name={`correct-${i}`}
+                                                checked={gap.correctVariant === option}
+                                                onChange={() => updateGap(i, {correctVariant: option})}
+                                                disabled={disabled}
+                                            />
+                                            <span>{CORRECT_LABEL}</span>
+                                        </div>
+                                        {!disabled && (
+                                            <button
+                                                className={styles.removeButton}
+                                                style={{position: "static", marginTop: 6}}
+                                                onClick={() => removeVariant(i, j)}
+                                            >
+                                                {DELETE_OPTION}
+                                            </button>
+                                        )}
                                     </div>
-                                    {!disabled && (
-                                        <button
-                                            className={styles.removeButton}
-                                            style={{position: "static", marginTop: 6}}
-                                            onClick={() => removeVariant(i, j)}
-                                        >
-                                            Удалить вариант
-                                        </button>
-                                    )}
-                                </div>
-                            ))}
+                                ))}
+                            </div>
+                            {!disabled && (
+                                <button className={styles.actionButton} onClick={() => addVariant(i)} style={{marginTop: 8}}>
+                                    {ADD_OPTION}
+                                </button>
+                            )}
                         </div>
-                        {!disabled && (
-                            <button className={styles.actionButton} onClick={() => addVariant(i)} style={{marginTop: 8}}>
-                                добавить вариант
-                            </button>
-                        )}
-                    </div>
+                    </CompactEditorItem>
                 ))}
             </div>
         </div>
     );
 }
-

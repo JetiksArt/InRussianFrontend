@@ -91,14 +91,14 @@ export async function uploadTaskBodyMediaIfNeeded(body: TaskBody): Promise<TaskB
     if (body.type === "ContentBlocks") {
         const items = await Promise.all(
             body.items.map(async (it) => {
-                if (it.kind === "IMAGE" && it.imageUrl) {
+                if (it.imageUrl) {
                     const val = it.imageUrl;
                     if (isDataUrl(val) || isBareBase64(val)) {
                         const mediaId = await uploadMediaString(val, "image");
                         return {...it, imageUrl: mediaId} as ContentItem;
                     }
                 }
-                if (it.kind === "AUDIO" && it.audioUrl) {
+                if (it.audioUrl) {
                     const val = it.audioUrl;
                     if (isDataUrl(val) || isBareBase64(val)) {
                         const mediaId = await uploadMediaString(val, "audio");
@@ -195,7 +195,9 @@ export function toInternalTaskBody(wire: WireTaskBody): TaskBody {
                 task: ((wire as any).task || []).map((row: any) => ({
                     cells: (row?.cells || []).map((cell: any) => ({
                         type: cell?.type === "WRITABLE" ? "WRITABLE" : "READONLY",
-                        value: cell?.value ?? "",
+                        prefix: cell?.prefix ?? cell?.value ?? "",
+                        placeholder: cell?.placeholder ?? null,
+                        suffix: cell?.suffix ?? "",
                         answer: cell?.answer ?? null,
                     })),
                 })),
@@ -277,7 +279,9 @@ export function toWireTaskBody(internal: TaskBody): WireTaskBody {
                 task: (internal.task || []).map((row) => ({
                     cells: (row.cells || []).map((cell) => ({
                         type: cell.type === "WRITABLE" ? "WRITABLE" : "READONLY",
-                        value: cell.value ?? "",
+                        prefix: cell.prefix ?? "",
+                        placeholder: cell.placeholder ?? null,
+                        suffix: cell.suffix ?? "",
                         answer: cell.type === "WRITABLE" ? (cell.answer ?? "") : null,
                     })),
                 })),

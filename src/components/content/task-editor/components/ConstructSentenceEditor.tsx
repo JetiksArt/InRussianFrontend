@@ -45,6 +45,10 @@ export function ConstructSentenceEditor({value, onChange, disabled}: {
         onChange({...value, audio: base64});
     };
 
+    const setAudioUrl = (audio: string) => {
+        onChange({...value, audio});
+    };
+
     const setWord = (idx: number, word: string) =>
         onChange({...value, variants: value.variants.map((v, i) => (i === idx ? word : v))});
 
@@ -53,7 +57,7 @@ export function ConstructSentenceEditor({value, onChange, disabled}: {
 
     return (
         <div>
-            <div className={styles.header}>
+            <div className={`${styles.header} ${styles.stickyToolbar}`}>
                 <h4 className={styles.title} style={{fontSize: "1rem"}}>
                     Собери предложение
                 </h4>
@@ -69,6 +73,8 @@ export function ConstructSentenceEditor({value, onChange, disabled}: {
                     value={value.audio}
                     accept="audio/*"
                     onChange={(f) => setAudio(f)}
+                    onValueChange={setAudioUrl}
+                    urlPlaceholder="https://example.com/audio.mp3"
                     disabled={disabled}
                 />
                 {audioPreview ? (

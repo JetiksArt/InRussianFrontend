@@ -37,6 +37,12 @@ import {
     toWireTaskBody,
     type WireTaskBody,
 } from "./taskBodyUtils";
+import {
+    canImportFromText,
+    getImportHelpText,
+    parseImportedTaskText,
+} from "./textImportUtils";
+import { getApiErrorMessage } from "../../../utils/apiError";
 
 const BODY_TYPE_OPTIONS: { value: TaskBody["type"]; label: string }[] = [
     {value: "TextConnectTask", label: "Текстовые варианты"},
@@ -194,10 +200,14 @@ export default function TaskEditorModal({
     readOnly = false,
 }: Props) {
     const [question, setQuestion] = useState<string | null>("");
+    const [position, setPosition] = useState<number | null>(null);
     const [taskTypes, setTaskTypes] = useState<TaskType[]>([]);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [body, setBody] = useState<TaskBody>({type: "TextConnectTask", variant: [["", ""]]});
+    const [importText, setImportText] = useState("");
+    const [importMessage, setImportMessage] = useState<string | null>(null);
+    const [isImportExpanded, setIsImportExpanded] = useState(true);
 
     const bodyType = body.type;
 
@@ -205,13 +215,19 @@ export default function TaskEditorModal({
         if (!isOpen) return;
         if (!initialTask) {
             setQuestion("");
+            setPosition(null);
             setTaskTypes([]);
             setBody({type: "TextConnectTask", variant: [["", ""]]});
+            setImportMessage(null);
+            setIsImportExpanded(true);
             return;
         }
         setQuestion(initialTask.question ?? "");
+        setPosition(initialTask.position ?? null);
         setTaskTypes(initialTask.taskType ?? []);
         setBody(toInternalTaskBody(initialTask.taskBody as unknown as WireTaskBody));
+        setImportMessage(null);
+        setIsImportExpanded(true);
     }, [isOpen, initialTask?.id]);
 
     const handleToggleTaskType = (taskType: TaskType) => {
@@ -223,6 +239,7 @@ export default function TaskEditorModal({
 
     const handleChangeBodyType = (type: TaskBody["type"]) => {
         if (readOnly) return;
+        setImportMessage(null);
         switch (type) {
             case "TextConnectTask":
                 setBody({type: "TextConnectTask", variant: [["", ""]]});
@@ -276,15 +293,27 @@ export default function TaskEditorModal({
             case "TableTask":
                 setBody({
                     type: "TableTask",
-                    task: [{cells: [{type: "READONLY", value: ""}, {type: "WRITABLE", value: "", answer: ""}]}],
+                    task: [{
+                        cells: [
+                            {type: "READONLY", prefix: "", placeholder: null, suffix: "", answer: null},
+                            {type: "WRITABLE", prefix: "", placeholder: "", suffix: "", answer: ""},
+                        ],
+                    }],
                 } as TaskBody);
                 setTaskTypes(["TASK"]);
                 break;
             case "ContentBlocks":
-                setBody({type: "ContentBlocks", items: [{kind: "TEXT", text: ""}]});
+                setBody({type: "ContentBlocks", items: [{text: ""}]});
                 setTaskTypes(["CONTENT_BLOCKS"]);
                 break;
         }
+    };
+
+    const handleImportFromText = () => {
+        if (readOnly || !canImportFromText(body.type)) return;
+        const result = parseImportedTaskText(body.type, importText);
+        setBody(result.body);
+        setImportMessage(result.message);
     };
 
     const getNormalizedTaskTypes = (types: TaskType[], bodyType: TaskBody["type"]): TaskType[] => {
@@ -378,7 +407,6 @@ export default function TaskEditorModal({
                 return (
                     !(body.task as TableRowModel[]).length ||
                     (body.task as TableRowModel[]).some((row) => !row.cells || row.cells.length < 2) ||
-                    (body.task as TableRowModel[]).some((row) => row.cells.some((cell) => !cell.value || !cell.value.trim())) ||
                     (body.task as TableRowModel[]).some((row) =>
                         row.cells.some((cell) => cell.type === "WRITABLE" && (!cell.answer || !String(cell.answer).trim()))
                     )
@@ -387,10 +415,11 @@ export default function TaskEditorModal({
                 const items = (body as any).items as ContentItem[];
                 if (!items || items.length === 0) return true;
                 return items.some((item) => {
-                    if (item.kind === "TEXT") return !item.text || !item.text.trim();
-                    if (item.kind === "IMAGE") return !item.imageUrl || !item.imageUrl.trim();
-                    if (item.kind === "AUDIO") return !item.audioUrl || !item.audioUrl.trim();
-                    return true;
+                    const hasImageField = item.imageUrl !== undefined && item.imageUrl !== null;
+                    const hasAudioField = item.audioUrl !== undefined && item.audioUrl !== null;
+                    if (hasImageField) return !item.imageUrl || !item.imageUrl.trim();
+                    if (hasAudioField) return !item.audioUrl || !item.audioUrl.trim();
+                    return !item.text || !item.text.trim();
                 });
             }
             default:
@@ -410,6 +439,8 @@ export default function TaskEditorModal({
                     themeId,
                     taskBody: wireBody as unknown as TaskBody,
                     taskTypes: normalizedTaskTypes,
+                    question: question === "" ? null : question,
+                    position,
                 };
                 const updated = await updateTaskApi(initialTask.id, req);
                 onUpdated?.(updated);
@@ -420,29 +451,21 @@ export default function TaskEditorModal({
                     taskBody: wireBody as unknown as TaskBody,
                     question: question === "" ? null : question,
                     taskTypes: normalizedTaskTypes,
+                    position,
                 };
                 const created = await createTaskApi(req);
                 onCreated?.(created);
                 onClose();
             }
         } catch (e: unknown) {
+            setError(getApiErrorMessage(e, "Не удалось сохранить задание."));
             if (axios.isAxiosError(e)) {
-                const status = e.response?.status;
-                const data = e.response?.data;
-                const details =
-                    typeof data === "string"
-                        ? data
-                        : data && typeof data === "object"
-                            ? JSON.stringify(data)
-                            : e.message;
-                setError(`Ошибка ${status ?? ""}: ${details || "Не удалось создать задание"}`.trim());
                 console.error("Task create/update failed:", {
-                    status,
-                    data,
+                    status: e.response?.status,
+                    data: e.response?.data,
                     request: e.config?.data,
                 });
             } else {
-                setError("Не удалось создать задание");
                 console.error("Task create/update failed:", e);
             }
         } finally {
@@ -495,10 +518,80 @@ export default function TaskEditorModal({
                                 ))}
                             </select>
                         </label>
+
                     </div>
                 </div>
 
                 <TaskTypesPicker selected={taskTypes} onToggle={handleToggleTaskType} disabled={readOnly} />
+
+                {canImportFromText(body.type) && (
+                    <div className={styles.card}>
+                        <div className={styles.header}>
+                            <h4 className={styles.title} style={{fontSize: "1rem"}}>
+                                Импорт из текста
+                            </h4>
+                            <div style={{display: "flex", gap: 8}}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsImportExpanded((prev) => !prev)}
+                                    style={{
+                                        width: 34,
+                                        height: 34,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        border: "none",
+                                        borderRadius: 6,
+                                        background: "#dc3545",
+                                        color: "#fff",
+                                        cursor: "pointer",
+                                        fontSize: "16px",
+                                        lineHeight: 1,
+                                    }}
+                                >
+                                    {isImportExpanded ? "▲" : "▼"}
+                                </button>
+                            </div>
+                        </div>
+
+                        {isImportExpanded ? (
+                            <>
+                                <div className={styles.hint} style={{marginBottom: 12, whiteSpace: "pre-wrap"}}>
+                                    {getImportHelpText(body.type)}
+                                </div>
+
+                                <textarea
+                                    className={styles.textarea}
+                                    rows={10}
+                                    value={importText}
+                                    onChange={(e) => setImportText(e.target.value)}
+                                    placeholder="Вставьте текст по шаблону выше"
+                                    disabled={readOnly}
+                                    style={{marginBottom: 8}}
+                                />
+
+                                {importMessage && (
+                                    <div className={styles.hint}>
+                                        {importMessage}
+                                    </div>
+                                )}
+
+                                {!readOnly && (
+                                    <div style={{display: "flex", justifyContent: "flex-end", marginTop: 12}}>
+                                        <button
+                                            className={styles.actionButton}
+                                            type="button"
+                                            onClick={handleImportFromText}
+                                            disabled={!importText.trim()}
+                                        >
+                                            Конвертировать
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        ) : null}
+                    </div>
+                )}
 
                 <div className={styles.card}>
                     {body.type === "TextConnectTask" && (
